@@ -11,6 +11,7 @@ playwright-report/
 test-results/
 output/
 *.log
+*.tsbuildinfo
 *.mp4
 *.mov
 *.webm
