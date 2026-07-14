@@ -1035,6 +1035,7 @@ h1 {
 
 .directory-input input {
   padding-right: 44px;
+  cursor: pointer;
 }
 
 .directory-input button {

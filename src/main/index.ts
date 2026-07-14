@@ -193,6 +193,10 @@ function registerSettingsIpc(): void {
 function registerWorkflowIpc(): void {
   ipcMain.handle('workflow:choose-directory', async (event) => {
     assertTrustedSender(event)
+    if (process.env.TASKTAPE_E2E === '1' && process.env.TASKTAPE_E2E_NATIVE_DIRECTORY !== '1') {
+      if (process.env.TASKTAPE_E2E_DIRECTORY_MODE === 'cancel') return null
+      return join(app.getPath('userData'), 'media-inbox')
+    }
     const owner = BrowserWindow.fromWebContents(event.sender)
     const options: Electron.OpenDialogOptions = {
       title: 'Choose the media folder',

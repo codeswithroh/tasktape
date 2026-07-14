@@ -50,6 +50,10 @@ export async function saveWorkflow(
   existingId?: string
 ): Promise<SavedWorkflow> {
   const input = saveWorkflowInputSchema.parse(rawInput)
+  const sourceInfo = await stat(input.sourceDirectory).catch(() => null)
+  if (!sourceInfo?.isDirectory()) {
+    throw new Error('That media folder is no longer available. Choose it again.')
+  }
   const previous = existingId ? await readWorkflow(root, workflowIdSchema.parse(existingId)) : null
   const now = new Date().toISOString()
   const workflow = savedWorkflowSchema.parse({

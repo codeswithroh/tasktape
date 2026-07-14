@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -132,5 +132,16 @@ describe('workflow persistence and execution', () => {
     expect(run.status).toBe('partial')
     expect(await readFile(join(setup.source, 'Videos', 'clip.mp4'), 'utf8')).toBe('new destination')
     expect(await readFile(join(setup.source, 'clip.mp4'), 'utf8')).toBe('video')
+  })
+
+  it('does not persist a workflow for a missing source folder', async () => {
+    const setup = await fixture()
+    await expect(
+      saveWorkflow(setup.root, {
+        ...setup.input,
+        sourceDirectory: join(setup.source, 'missing')
+      })
+    ).rejects.toThrow('That media folder is no longer available. Choose it again.')
+    await expect(readdir(setup.root)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

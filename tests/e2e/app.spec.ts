@@ -1,9 +1,10 @@
 import { _electron as electron, expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-async function launchTestApp(): Promise<{
+async function launchTestApp(environment: Record<string, string> = {}): Promise<{
   application: Awaited<ReturnType<typeof electron.launch>>
   userData: string
 }> {
@@ -13,10 +14,36 @@ async function launchTestApp(): Promise<{
     env: {
       ...process.env,
       TASKTAPE_E2E: '1',
-      TASKTAPE_USER_DATA: userData
+      TASKTAPE_USER_DATA: userData,
+      ...environment
     }
   })
   return { application, userData }
+}
+
+async function reachRecipeEditor(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Start recording' }).click()
+  await page.getByRole('button', { name: 'Share window: Downloads - Finder' }).click()
+  await page.waitForTimeout(150)
+  await page.getByRole('button', { name: 'Stop and save' }).click()
+  await page.getByRole('button', { name: 'Explain this workflow' }).click()
+  await page
+    .getByLabel('Where should TaskTape look for new videos and images?')
+    .fill('My Downloads folder')
+  await page
+    .getByLabel('How do you decide which folder each file belongs in?')
+    .fill('Sort by media type.')
+  await page
+    .getByLabel('What folder structure should TaskTape create or reuse?')
+    .fill('Videos / Images')
+  await page
+    .getByLabel('Should TaskTape move the original files or keep a copy?')
+    .selectOption('Move the originals')
+  await page
+    .getByLabel('What should happen when a file does not match any category?')
+    .selectOption('Leave it where it is')
+  await page.getByRole('button', { name: 'Save and review' }).click()
+  await expect(page.getByRole('heading', { name: 'Set up the workflow' })).toBeVisible()
 }
 
 test('launches the isolated TaskTape shell', async () => {
@@ -135,7 +162,9 @@ test('records, saves, and runs a real media workflow', async () => {
 
     const editedGoal = 'Organize new creator videos and images into media folders.'
     await page.getByLabel('Goal').fill(editedGoal)
-    await page.getByLabel('Media folder').fill(mediaInbox)
+    await expect(page.getByLabel('Media folder')).toHaveValue('')
+    await page.getByRole('button', { name: 'Choose folder' }).click()
+    await expect(page.getByLabel('Media folder')).toHaveValue(mediaInbox)
     await expect(page.getByLabel('Videos go to')).toHaveValue('Raw Video')
     await expect(page.getByLabel('Images go to')).toHaveValue('Images')
     await expect(page.getByLabel('Move originals')).toBeChecked()
@@ -192,6 +221,29 @@ test('records, saves, and runs a real media workflow', async () => {
     await page.getByRole('button', { name: 'Discard' }).click()
     await expect(page.getByRole('button', { name: 'Start recording' })).toBeVisible()
     expect(await readdir(join(userData, 'recordings'))).toHaveLength(0)
+  } finally {
+    await application.close()
+    await rm(userData, { recursive: true, force: true })
+  }
+})
+
+test('keeps natural folder answers out of execution and handles chooser cancellation', async () => {
+  const { application, userData } = await launchTestApp({
+    TASKTAPE_E2E_DIRECTORY_MODE: 'cancel'
+  })
+
+  try {
+    const page = await application.firstWindow()
+    await reachRecipeEditor(page)
+    await expect(page.getByLabel('Media folder')).toHaveValue('')
+    await page.getByRole('button', { name: 'Save workflow' }).click()
+    await expect(page.getByRole('alert')).toHaveText(
+      'Choose the media folder before saving this workflow.'
+    )
+    const visibleText = await page.locator('.recipe-editor').innerText()
+    expect(visibleText).not.toContain('Error invoking remote method')
+    expect(visibleText).not.toContain('sourceDirectory')
+    await expect(readdir(join(userData, 'workflows'))).rejects.toMatchObject({ code: 'ENOENT' })
   } finally {
     await application.close()
     await rm(userData, { recursive: true, force: true })

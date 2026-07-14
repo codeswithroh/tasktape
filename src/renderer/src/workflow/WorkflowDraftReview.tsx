@@ -29,6 +29,17 @@ function cleanText(value: string): string {
   return value.replace(/\s*[—–]\s*/g, ', ')
 }
 
+function friendlyError(reason: unknown, fallback: string): string {
+  const message = reason instanceof Error ? reason.message : ''
+  if (message.includes('no longer available') || message.includes('ENOENT')) {
+    return 'That media folder is no longer available. Choose it again.'
+  }
+  if (message.includes('single folder name')) {
+    return 'Destination names must be a single folder name without slashes.'
+  }
+  return fallback
+}
+
 function fileName(path: string): string {
   return path.split('/').filter(Boolean).at(-1) ?? path
 }
@@ -65,7 +76,7 @@ export function WorkflowDraftReview({
   const [recipe, setRecipe] = useState<SaveWorkflowInput>({
     name: analysis.title,
     goal: analysis.goalHypothesis,
-    sourceDirectory: answers.media_source ?? '',
+    sourceDirectory: '',
     videoFolder: inferredFolder(answers.folder_structure, 'video', 'Videos'),
     imageFolder: inferredFolder(answers.folder_structure, 'image', 'Images'),
     operation: initialOperation(answers.file_action),
@@ -94,22 +105,33 @@ export function WorkflowDraftReview({
     setError(null)
   }
 
-  const chooseDirectory = async (): Promise<void> => {
-    const directory = await window.tasktape.workflow.chooseDirectory()
-    if (directory) updateRecipe('sourceDirectory', directory)
+  const chooseDirectory = async (): Promise<string | null> => {
+    try {
+      const directory = await window.tasktape.workflow.chooseDirectory()
+      if (directory) updateRecipe('sourceDirectory', directory)
+      return directory
+    } catch (reason) {
+      setError(friendlyError(reason, 'The folder chooser could not open. Please try again.'))
+      return null
+    }
   }
 
   const saveAndPlan = async (): Promise<void> => {
-    setBusy('saving')
     setError(null)
+    const sourceDirectory = recipe.sourceDirectory || (await chooseDirectory())
+    if (!sourceDirectory) {
+      setError('Choose the media folder before saving this workflow.')
+      return
+    }
+    setBusy('saving')
     try {
-      const saved = await window.tasktape.workflow.save(recipe)
+      const saved = await window.tasktape.workflow.save({ ...recipe, sourceDirectory })
       const pendingPlan = await window.tasktape.workflow.plan(saved.id)
       setWorkflow(saved)
       setPlan(pendingPlan)
       setApproved(false)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not save this workflow.')
+      setError(friendlyError(reason, 'Could not save this workflow. Check the folder settings.'))
     } finally {
       setBusy(null)
     }
@@ -122,7 +144,9 @@ export function WorkflowDraftReview({
     try {
       setRun(await window.tasktape.workflow.execute({ workflowId: workflow.id, planId: plan.id }))
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The workflow could not run.')
+      setError(
+        friendlyError(reason, 'The workflow could not run. No unreported changes were made.')
+      )
     } finally {
       setBusy(null)
     }
@@ -241,7 +265,11 @@ export function WorkflowDraftReview({
           </label>
         ) : null}
 
-        {error ? <p className="workflow-error">{error}</p> : null}
+        {error ? (
+          <p className="workflow-error" role="alert">
+            {error}
+          </p>
+        ) : null}
         <button
           className="record-button run-workflow-button"
           type="button"
@@ -291,15 +319,19 @@ export function WorkflowDraftReview({
           <input
             id="source-directory"
             value={recipe.sourceDirectory}
-            onChange={(event) => updateRecipe('sourceDirectory', event.target.value)}
             placeholder="Choose a folder"
-            required
+            readOnly
+            onClick={() => void chooseDirectory()}
+            aria-describedby="source-directory-note"
           />
           <button type="button" onClick={() => void chooseDirectory()} title="Choose folder">
             <FolderOpen size={17} />
             <span className="sr-only">Choose folder</span>
           </button>
         </div>
+        <p className="field-note" id="source-directory-note">
+          TaskTape only accesses the folder you choose here.
+        </p>
 
         <div className="destination-fields">
           <div>
@@ -352,7 +384,11 @@ export function WorkflowDraftReview({
           <option value="move">Move them to Unsorted</option>
         </select>
 
-        {error ? <p className="workflow-error">{error}</p> : null}
+        {error ? (
+          <p className="workflow-error" role="alert">
+            {error}
+          </p>
+        ) : null}
         <button className="record-button" type="submit" disabled={busy === 'saving'}>
           {busy === 'saving' ? <LoaderCircle className="spinner" size={17} /> : <Save size={17} />}
           {busy === 'saving' ? 'Saving workflow' : 'Save workflow'}
