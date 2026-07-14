@@ -55,6 +55,13 @@ test('records, saves, previews, and discards a workflow', async () => {
 
     await expect(page.getByRole('heading', { name: 'Ready to explain' })).toBeVisible()
     await expect(page.getByTestId('recording-preview')).toBeVisible()
+    await expect(page.getByTestId('frame-count')).toHaveText('1')
+    const extractedFrame = page.getByTestId('key-frame')
+    await expect(extractedFrame).toBeVisible()
+    expect(await extractedFrame.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(
+      1280
+    )
+    expect(await extractedFrame.getAttribute('src')).toMatch(/^data:image\/jpeg;base64,/)
     expect(await readdir(join(userData, 'recordings'))).toHaveLength(2)
     await page.addStyleTag({
       content: '*, *::before, *::after { animation: none !important; transition: none !important; }'

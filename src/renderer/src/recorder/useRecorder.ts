@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { RecordingMetadata, ScreenPermissionStatus } from '../../../shared/contracts'
+import type { ExtractedFrame } from '../../../shared/analysis-contracts'
+import { extractFrames } from '../analysis/extractFrames'
 import { requestCaptureStream, selectRecordingMimeType } from './capture'
 
-export type RecorderState = 'idle' | 'requesting' | 'recording' | 'saving' | 'ready' | 'error'
+export type RecorderState =
+  'idle' | 'requesting' | 'recording' | 'saving' | 'extracting' | 'ready' | 'error'
 
 interface RecorderController {
   state: RecorderState
@@ -11,6 +14,8 @@ interface RecorderController {
   elapsedMs: number
   previewUrl: string | null
   metadata: RecordingMetadata | null
+  frames: ExtractedFrame[]
+  frameError: string | null
   error: string | null
   start: () => Promise<void>
   stop: () => void
@@ -32,6 +37,8 @@ export function useRecorder(): RecorderController {
   const [elapsedMs, setElapsedMs] = useState(0)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [metadata, setMetadata] = useState<RecordingMetadata | null>(null)
+  const [frames, setFrames] = useState<ExtractedFrame[]>([])
+  const [frameError, setFrameError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -94,6 +101,14 @@ export function useRecorder(): RecorderController {
         setPreviewUrl(url)
         setMetadata(saved)
         setElapsedMs(durationMs)
+        setState('extracting')
+        try {
+          setFrames(await extractFrames(blob, durationMs))
+          setFrameError(null)
+        } catch (caught) {
+          setFrames([])
+          setFrameError(readableError(caught))
+        }
         setState('ready')
       } catch (caught) {
         setError(readableError(caught))
@@ -107,6 +122,8 @@ export function useRecorder(): RecorderController {
     if (recorderRef.current || state === 'requesting' || state === 'saving') return
     revokePreview()
     setMetadata(null)
+    setFrames([])
+    setFrameError(null)
     setError(null)
     setElapsedMs(0)
     setState('requesting')
@@ -162,6 +179,8 @@ export function useRecorder(): RecorderController {
     if (metadata) await window.tasktape.recorder.remove(metadata.id)
     revokePreview()
     setMetadata(null)
+    setFrames([])
+    setFrameError(null)
     setElapsedMs(0)
     setError(null)
     setState('idle')
@@ -173,6 +192,8 @@ export function useRecorder(): RecorderController {
     elapsedMs,
     previewUrl,
     metadata,
+    frames,
+    frameError,
     error,
     start,
     stop,

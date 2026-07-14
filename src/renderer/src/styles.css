@@ -408,7 +408,7 @@ h1 {
 
 .recording-facts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   margin: -6px 0 24px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -433,6 +433,23 @@ h1 {
   margin: 4px 0 0;
   font-family: 'SF Mono', 'Roboto Mono', monospace;
   font-size: 12px;
+}
+
+.frame-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin: -12px 0 20px;
+}
+
+.frame-strip img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-subtle);
+  object-fit: cover;
 }
 
 .secondary-actions {

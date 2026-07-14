@@ -29,7 +29,10 @@ function formatBytes(bytes: number): string {
 
 export function App(): React.JSX.Element {
   const recorder = useRecorder()
-  const isBusy = recorder.state === 'requesting' || recorder.state === 'saving'
+  const isBusy =
+    recorder.state === 'requesting' ||
+    recorder.state === 'saving' ||
+    recorder.state === 'extracting'
 
   return (
     <div className="app-shell">
@@ -90,12 +93,18 @@ export function App(): React.JSX.Element {
               <div className="recording-live" aria-live="polite">
                 <LoaderCircle className="spinner" size={34} />
                 <strong>
-                  {recorder.state === 'requesting' ? 'Choose what to share' : 'Saving locally'}
+                  {recorder.state === 'requesting'
+                    ? 'Choose what to share'
+                    : recorder.state === 'extracting'
+                      ? 'Preparing key frames'
+                      : 'Saving locally'}
                 </strong>
                 <p>
                   {recorder.state === 'requesting'
                     ? 'Select a screen or window in the macOS picker.'
-                    : 'TaskTape is securing the recording on this Mac.'}
+                    : recorder.state === 'extracting'
+                      ? 'TaskTape is sampling a small, bounded set of frames on this Mac.'
+                      : 'TaskTape is securing the recording on this Mac.'}
                 </p>
               </div>
             ) : (
@@ -141,7 +150,28 @@ export function App(): React.JSX.Element {
                     <dt>Size</dt>
                     <dd>{formatBytes(recorder.metadata.bytes)}</dd>
                   </div>
+                  <div>
+                    <dt>Key frames</dt>
+                    <dd data-testid="frame-count">
+                      {recorder.frameError ? 'Unavailable' : recorder.frames.length}
+                    </dd>
+                  </div>
                 </dl>
+                {recorder.frames.length > 0 ? (
+                  <div className="frame-strip" aria-label="Locally prepared key frames">
+                    {recorder.frames.map((frame) => (
+                      <img
+                        key={frame.timestampMs}
+                        src={frame.dataUrl}
+                        alt={`Key frame at ${formatDuration(frame.timestampMs)}`}
+                        data-testid="key-frame"
+                      />
+                    ))}
+                  </div>
+                ) : null}
+                {recorder.frameError ? (
+                  <p className="honesty-note">Frame preparation failed: {recorder.frameError}</p>
+                ) : null}
                 <button className="record-button" type="button" disabled>
                   <Sparkles size={17} />
                   Continue to intent interview
