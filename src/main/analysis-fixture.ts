@@ -1,9 +1,9 @@
 import type { WorkflowAnalysis } from '../shared/analysis-schema.js'
 
 export const TEST_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
-  title: 'Organize captured workflow files',
-  summary: 'The recording shows a short file-organizing routine.',
-  goalHypothesis: 'Organize files from one folder without changing anything before review.',
+  title: 'Organize creator media',
+  summary: 'The recording shows videos and images being organized into folders.',
+  goalHypothesis: 'Organize new videos and images using the same folder structure after review.',
   observedSteps: [
     {
       order: 1,

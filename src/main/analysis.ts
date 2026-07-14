@@ -8,13 +8,17 @@ import {
   type WorkflowAnalysis,
   workflowAnalysisSchema
 } from '../shared/analysis-schema.js'
+import { planIntentInterview } from './interview-planner.js'
 
 type AnalysisProvider = (input: AnalyzeRecordingInput) => Promise<unknown>
 
 const ANALYSIS_INSTRUCTIONS = `You analyze a sparse sequence of frames sampled from a user's screen recording.
 Describe only what the frames support. Never claim that an action occurred between frames unless it is visible.
 Separate observed values from inferred values. Ask two to five high-value follow-up questions that resolve intent,
-scope, safety boundaries, variable inputs, and ambiguous outcomes. Questions must be specific to this demonstration.
+scope, safety boundaries, variable inputs, and ambiguous outcomes. Learn reusable rules from the demonstration instead
+of asking the user to confirm one observed filename. For media organization workflows, ask where new media comes from,
+how files are categorized, which folder structure to follow, whether to move or copy files, and how to handle files
+that do not match a category.
 Write in natural, everyday language. Keep the summary to one sentence of at most 20 words and the goal to at most
 18 words. Keep each question short; include exact file or folder names only when needed. Keep each reason to one
 brief sentence. Do not use em dashes, internal IDs, jargon, or snake case unless it is part of an exact filename.
@@ -72,5 +76,5 @@ export async function analyzeRecording(
     step.evidenceFrameIndexes.some((index) => index >= input.frames.length)
   )
   if (invalidEvidence) throw new Error('Analysis cited a frame that was not provided.')
-  return analysis
+  return workflowAnalysisSchema.parse(planIntentInterview(analysis))
 }
