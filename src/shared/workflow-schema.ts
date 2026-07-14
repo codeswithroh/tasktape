@@ -17,6 +17,8 @@ const folderNameSchema = z
     'Use a single folder name without slashes.'
   )
 
+export const workflowIdSchema = z.string().uuid()
+
 export const saveWorkflowInputSchema = z.object({
   name: z.string().trim().min(1).max(80),
   goal: z.string().trim().min(1).max(240),
@@ -30,7 +32,7 @@ export const saveWorkflowInputSchema = z.object({
 
 export const savedWorkflowSchema = saveWorkflowInputSchema.extend({
   version: z.literal(1),
-  id: z.string().uuid(),
+  id: workflowIdSchema,
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
 })
@@ -48,7 +50,7 @@ export const workflowPlanActionSchema = z.object({
 export const workflowPlanSchema = z.object({
   version: z.literal(1),
   id: z.string().uuid(),
-  workflowId: z.string().uuid(),
+  workflowId: workflowIdSchema,
   createdAt: z.string().datetime(),
   actions: z.array(workflowPlanActionSchema).max(1_000),
   skipped: z
@@ -62,7 +64,7 @@ export const workflowPlanSchema = z.object({
 })
 
 export const executeWorkflowInputSchema = z.object({
-  workflowId: z.string().uuid(),
+  workflowId: workflowIdSchema,
   planId: z.string().uuid()
 })
 

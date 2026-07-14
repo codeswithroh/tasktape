@@ -65,6 +65,18 @@ export interface TaskTapeBridge {
     saveApiKey: (apiKey: string) => Promise<ApiKeyStatus>
     clearApiKey: () => Promise<ApiKeyStatus>
   }
+  workflow: {
+    chooseDirectory: () => Promise<string | null>
+    save: (input: SaveWorkflowInput) => Promise<SavedWorkflow>
+    plan: (workflowId: string) => Promise<WorkflowPlan>
+    execute: (input: { workflowId: string; planId: string }) => Promise<WorkflowRun>
+  }
 }
 import type { AnalyzeRecordingInput } from './analysis-contracts.js'
 import type { WorkflowAnalysis } from './analysis-schema.js'
+import type {
+  SavedWorkflow,
+  SaveWorkflowInput,
+  WorkflowPlan,
+  WorkflowRun
+} from './workflow-schema.js'

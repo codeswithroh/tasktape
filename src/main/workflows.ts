@@ -21,7 +21,8 @@ import {
   type WorkflowPlan,
   workflowPlanSchema,
   type WorkflowRun,
-  workflowRunSchema
+  workflowRunSchema,
+  workflowIdSchema
 } from '../shared/workflow-schema.js'
 
 const VIDEO_EXTENSIONS = new Set(['.avi', '.m4v', '.mkv', '.mov', '.mp4', '.webm'])
@@ -38,7 +39,8 @@ function workflowDirectory(root: string, workflowId: string): string {
 }
 
 async function readWorkflow(root: string, workflowId: string): Promise<SavedWorkflow> {
-  const content = await readFile(join(workflowDirectory(root, workflowId), 'workflow.json'), 'utf8')
+  const id = workflowIdSchema.parse(workflowId)
+  const content = await readFile(join(workflowDirectory(root, id), 'workflow.json'), 'utf8')
   return savedWorkflowSchema.parse(JSON.parse(content))
 }
 
@@ -48,7 +50,7 @@ export async function saveWorkflow(
   existingId?: string
 ): Promise<SavedWorkflow> {
   const input = saveWorkflowInputSchema.parse(rawInput)
-  const previous = existingId ? await readWorkflow(root, existingId) : null
+  const previous = existingId ? await readWorkflow(root, workflowIdSchema.parse(existingId)) : null
   const now = new Date().toISOString()
   const workflow = savedWorkflowSchema.parse({
     ...input,
@@ -72,7 +74,8 @@ function classify(extension: string): 'video' | 'image' | 'unmatched' {
 }
 
 export async function createWorkflowPlan(root: string, workflowId: string): Promise<WorkflowPlan> {
-  const workflow = await readWorkflow(root, workflowId)
+  const id = workflowIdSchema.parse(workflowId)
+  const workflow = await readWorkflow(root, id)
   const sourceInfo = await stat(workflow.sourceDirectory)
   if (!sourceInfo.isDirectory()) throw new Error('The workflow source is not a folder.')
 
@@ -119,23 +122,18 @@ export async function createWorkflowPlan(root: string, workflowId: string): Prom
   const plan = workflowPlanSchema.parse({
     version: 1,
     id: randomUUID(),
-    workflowId,
+    workflowId: id,
     createdAt: new Date().toISOString(),
     actions,
     skipped
   })
-  await writeJson(join(workflowDirectory(root, workflowId), 'plans', `${plan.id}.json`), plan)
+  await writeJson(join(workflowDirectory(root, id), 'plans', `${plan.id}.json`), plan)
   return plan
 }
 
 async function moveWithoutOverwrite(sourcePath: string, destinationPath: string): Promise<void> {
-  try {
-    await rename(sourcePath, destinationPath)
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error
-    await copyFile(sourcePath, destinationPath, constants.COPYFILE_EXCL)
-    await unlink(sourcePath)
-  }
+  await copyFile(sourcePath, destinationPath, constants.COPYFILE_EXCL)
+  await unlink(sourcePath)
 }
 
 export async function executeWorkflowPlan(

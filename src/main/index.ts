@@ -6,6 +6,7 @@ import {
   app,
   BrowserWindow,
   desktopCapturer,
+  dialog,
   type IpcMainInvokeEvent,
   ipcMain,
   safeStorage,
@@ -19,6 +20,7 @@ import type { CaptureSource, SaveRecordingInput } from '../shared/contracts.js'
 import type { AnalyzeRecordingInput } from '../shared/analysis-contracts.js'
 import { captureSourceIdSchema } from '../shared/capture-source-schema.js'
 import { recordingIdSchema } from '../shared/recording-schema.js'
+import type { SaveWorkflowInput } from '../shared/workflow-schema.js'
 import { analyzeRecording, requestOpenAIAnalysis } from './analysis.js'
 import { TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
 import {
@@ -29,6 +31,7 @@ import {
   saveApiKey
 } from './api-credentials.js'
 import { removeRecording, saveRecording } from './recordings.js'
+import { createWorkflowPlan, executeWorkflowPlan, saveWorkflow } from './workflows.js'
 
 if (!app.isPackaged) {
   config({
@@ -43,6 +46,10 @@ if (process.env.TASKTAPE_USER_DATA) {
 
 function recordingsRoot(): string {
   return join(app.getPath('userData'), 'recordings')
+}
+
+function workflowsRoot(): string {
+  return join(app.getPath('userData'), 'workflows')
 }
 
 const credentialCipher: CredentialCipher = {
@@ -183,6 +190,33 @@ function registerSettingsIpc(): void {
   })
 }
 
+function registerWorkflowIpc(): void {
+  ipcMain.handle('workflow:choose-directory', async (event) => {
+    assertTrustedSender(event)
+    const owner = BrowserWindow.fromWebContents(event.sender)
+    const options: Electron.OpenDialogOptions = {
+      title: 'Choose the media folder',
+      properties: ['openDirectory', 'createDirectory']
+    }
+    const result = owner
+      ? await dialog.showOpenDialog(owner, options)
+      : await dialog.showOpenDialog(options)
+    return result.canceled ? null : (result.filePaths[0] ?? null)
+  })
+  ipcMain.handle('workflow:save', (event, input: SaveWorkflowInput) => {
+    assertTrustedSender(event)
+    return saveWorkflow(workflowsRoot(), input)
+  })
+  ipcMain.handle('workflow:plan', (event, workflowId: string) => {
+    assertTrustedSender(event)
+    return createWorkflowPlan(workflowsRoot(), workflowId)
+  })
+  ipcMain.handle('workflow:execute', (event, input: { workflowId: string; planId: string }) => {
+    assertTrustedSender(event)
+    return executeWorkflowPlan(workflowsRoot(), input)
+  })
+}
+
 function registerDisplayCapture(): void {
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
     const owner = request.frame ? webContents.fromFrame(request.frame) : undefined
@@ -237,6 +271,7 @@ app.whenReady().then(() => {
   registerRecorderIpc()
   registerAnalysisIpc()
   registerSettingsIpc()
+  registerWorkflowIpc()
   registerDisplayCapture()
   createWindow()
   app.on('activate', () => {

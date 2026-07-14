@@ -33,9 +33,11 @@ Model output never executes directly. It must parse into a versioned Zod schema 
 
 The hackathon proof uses deterministic filesystem capabilities: inspect, classify, rename, create-directory, and move. Browser and arbitrary desktop control are future adapters, not simulated features in the initial build.
 
+The first executable recipe scans regular files at the top level of one user-selected folder. It classifies supported video and image extensions, creates user-confirmed destination folders, and either moves or copies with exclusive destination creation. Unsupported files and collisions stay unchanged. A persisted plan records file size and modification time; execution refuses an action if the source changed after review.
+
 ## Persistence
 
-Milestone 1 begins with filesystem-backed local metadata. SQLite will be introduced only when scheduling and run history require transactional state in Milestone 4.
+Recordings, versioned workflow recipes, approved plans, and activity logs use filesystem-backed local metadata. Workflow JSON files are written with mode `0600`. SQLite remains deferred until scheduling and searchable run history require transactional state.
 
 ## Security
 

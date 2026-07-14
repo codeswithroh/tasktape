@@ -117,4 +117,20 @@ describe('workflow persistence and execution', () => {
       message: 'The source file changed after review.'
     })
   })
+
+  it('never overwrites a destination created after review', async () => {
+    const setup = await fixture()
+    const workflow = await saveWorkflow(setup.root, setup.input)
+    const plan = await createWorkflowPlan(setup.root, workflow.id)
+    await mkdir(join(setup.source, 'Videos'))
+    await writeFile(join(setup.source, 'Videos', 'clip.mp4'), 'new destination')
+    const run = await executeWorkflowPlan(setup.root, {
+      workflowId: workflow.id,
+      planId: plan.id
+    })
+
+    expect(run.status).toBe('partial')
+    expect(await readFile(join(setup.source, 'Videos', 'clip.mp4'), 'utf8')).toBe('new destination')
+    expect(await readFile(join(setup.source, 'clip.mp4'), 'utf8')).toBe('video')
+  })
 })

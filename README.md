@@ -6,13 +6,15 @@ TaskTape is a desktop automation builder that learns from a recorded demonstrati
 
 ## Current status
 
-Milestones 1 and 2 are complete. TaskTape now has verified local key-frame extraction, schema-bound GPT-5.6 analysis, and a follow-up intent interview in both deterministic and live-model tests. Audio capture is deliberately deferred; the current product gathers missing context through focused follow-up questions.
+TaskTape now completes one real workflow end to end. A user can record a media-organizing routine, answer contextual questions, edit the inferred goal, save a versioned local recipe, review exact file changes, and run actual moves or copies with a persisted activity log.
 
 Recording starts with TaskTape's visual source gallery, which shows full displays and every currently available application window as named thumbnail tiles. The selected source is revalidated in Electron's main process immediately before capture.
 
 Users can add or replace their own OpenAI API key from Settings. App-managed keys are encrypted through the operating system's secure storage and never exposed back to the renderer; `.env.local` remains a development-only fallback.
 
 The initial release is macOS-first and is being built for OpenAI Build Week. The product vision is broader than the hackathon implementation, but the demo will prove one complete, reliable workflow rather than simulate universal desktop control.
+
+The executable boundary is intentionally specific: TaskTape scans top-level files in one selected folder, recognizes common video and image formats, and organizes them into confirmed destination folders. Unsupported files and name collisions remain unchanged. Scheduling, searchable history, and arbitrary application control are not yet implemented.
 
 ## Product loop
 

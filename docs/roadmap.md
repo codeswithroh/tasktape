@@ -57,7 +57,7 @@ Exit gate:
 
 - A real Electron test saves an app key, proves the persisted file excludes its plaintext, resolves app-key status, and removes it successfully.
 
-## Milestone 3: Workflow recipe and dry run - July 17
+## Milestone 3: Workflow recipe and change review - Complete July 15
 
 Deliverables:
 
@@ -70,18 +70,34 @@ Exit gate:
 
 - The reference recipe previews exact renames and moves without changing the fixture, including collision and unsupported-file cases.
 
-## Milestone 4: Execution, scheduling, and logs - July 18
+Verified result:
+
+- The editable recipe persists locally and previews exact top-level media moves or copies. Automated filesystem tests cover unsupported files, collisions, path traversal, changed sources, and late destination collisions.
+
+## Milestone 4A: Immediate execution and logs - Complete July 15
 
 Deliverables:
 
-- Approved execution with bounded filesystem permissions.
+- Explicit approval of a persisted change plan.
+- Real move and copy execution with exclusive destination creation.
+- Durable local activity log with per-file outcomes.
+- Honest completed, partial, and failed result states.
+
+Exit gate:
+
+- The Electron journey moves disposable video and image fixtures into confirmed folders, leaves unsupported files unchanged, and verifies the persisted activity log.
+
+## Milestone 4B: Scheduling and history - July 18
+
+Deliverables:
+
 - Scheduler for saved workflows.
-- Run history, step results, and actionable failures.
+- Searchable run history and actionable failures.
 - Idempotency and rollback strategy for the reference workflow.
 
 Exit gate:
 
-- Immediate and scheduled runs both transform disposable fixtures correctly, and reruns do not corrupt prior results.
+- Scheduled runs transform disposable fixtures correctly, and reruns do not corrupt prior results.
 
 ## Milestone 5: Product polish and submission - July 19-20
 

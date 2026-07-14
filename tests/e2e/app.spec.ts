@@ -1,5 +1,5 @@
 import { _electron as electron, expect, test } from '@playwright/test'
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -43,8 +43,13 @@ test('launches the isolated TaskTape shell', async () => {
   }
 })
 
-test('records, saves, previews, and discards a workflow', async () => {
+test('records, saves, and runs a real media workflow', async () => {
   const { application, userData } = await launchTestApp()
+  const mediaInbox = join(userData, 'media-inbox')
+  await mkdir(mediaInbox)
+  await writeFile(join(mediaInbox, 'launch.mp4'), 'video fixture')
+  await writeFile(join(mediaInbox, 'thumbnail.png'), 'image fixture')
+  await writeFile(join(mediaInbox, 'brief.txt'), 'leave this file')
 
   try {
     const page = await application.firstWindow()
@@ -104,7 +109,7 @@ test('records, saves, previews, and discards a workflow', async () => {
       .fill('Project / Raw Video / Images / Exports')
     await page
       .getByLabel('Should TaskTape move the original files or keep a copy?')
-      .selectOption('Copy and keep the originals')
+      .selectOption('Move the originals')
     await page
       .getByLabel('What should happen when a file does not match any category?')
       .selectOption('Put it in an Unsorted folder')
@@ -116,23 +121,64 @@ test('records, saves, previews, and discards a workflow', async () => {
       .screenshot({ path: 'output/playwright/intent-interview.png' })
     await page.getByRole('button', { name: 'Save and review' }).click()
 
-    await expect(page.getByRole('heading', { name: 'Review the workflow' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Review the workflow' })).toBeFocused()
+    await expect(page.getByRole('heading', { name: 'Set up the workflow' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Set up the workflow' })).toBeFocused()
     await expect(page.getByText('Answers saved', { exact: true })).toBeVisible()
-    await expect(page.getByText('Ready for a dry run', { exact: true })).toBeVisible()
-    await expect(page.getByText('No files have changed.', { exact: false })).toBeVisible()
-    await expect(page.getByText('Group files by project, then by media type.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Save and review' })).toHaveCount(0)
-    const visibleDraftText = await page.locator('.workflow-draft').innerText()
-    expect(visibleDraftText).not.toContain('—')
-    expect(visibleDraftText).not.toContain('category_rules')
-    await page.screenshot({ path: 'output/playwright/workflow-draft-review.png' })
 
     await page.getByRole('button', { name: 'Edit answers' }).click()
     await expect(page.getByRole('heading', { name: 'A few quick questions' })).toBeVisible()
     await expect(
       page.getByLabel('How do you decide which folder each file belongs in?')
     ).toHaveValue('Group files by project, then by media type.')
+    await page.getByRole('button', { name: 'Save and review' }).click()
+
+    const editedGoal = 'Organize new creator videos and images into media folders.'
+    await page.getByLabel('Goal').fill(editedGoal)
+    await page.getByLabel('Media folder').fill(mediaInbox)
+    await expect(page.getByLabel('Videos go to')).toHaveValue('Raw Video')
+    await expect(page.getByLabel('Images go to')).toHaveValue('Images')
+    await expect(page.getByLabel('Move originals')).toBeChecked()
+    await expect(page.getByLabel('Other files')).toHaveValue('move')
+    await page.getByLabel('Other files').selectOption('leave')
+    await page.screenshot({ path: 'output/playwright/workflow-recipe-editor.png' })
+    await page.getByRole('button', { name: 'Save workflow' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Review and run' })).toBeVisible()
+    await expect(page.getByText('Workflow saved', { exact: true })).toBeVisible()
+    await expect(page.getByText(editedGoal, { exact: true })).toBeVisible()
+    await expect(page.getByText('launch.mp4', { exact: true })).toBeVisible()
+    await expect(page.getByText('thumbnail.png', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Run workflow' })).toBeDisabled()
+    await page.getByLabel('I reviewed these file changes.').check()
+    await expect(page.getByRole('button', { name: 'Run workflow' })).toBeEnabled()
+    await page.screenshot({ path: 'output/playwright/workflow-run-approval.png' })
+    await page.getByRole('button', { name: 'Run workflow' }).click()
+
+    await expect(page.getByRole('heading', { name: '2 files updated' })).toBeVisible()
+    await expect(page.getByText('Run completed', { exact: true })).toBeVisible()
+    await expect(page.getByText('This result was written to the local activity log.')).toBeVisible()
+    expect(await readFile(join(mediaInbox, 'Raw Video', 'launch.mp4'), 'utf8')).toBe(
+      'video fixture'
+    )
+    expect(await readFile(join(mediaInbox, 'Images', 'thumbnail.png'), 'utf8')).toBe(
+      'image fixture'
+    )
+    expect(await readFile(join(mediaInbox, 'brief.txt'), 'utf8')).toBe('leave this file')
+    await expect(readFile(join(mediaInbox, 'launch.mp4'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(mediaInbox, 'thumbnail.png'))).rejects.toMatchObject({
+      code: 'ENOENT'
+    })
+    const workflowIds = await readdir(join(userData, 'workflows'))
+    expect(workflowIds).toHaveLength(1)
+    const runFiles = await readdir(join(userData, 'workflows', workflowIds[0], 'runs'))
+    expect(runFiles).toHaveLength(1)
+    const runLog = JSON.parse(
+      await readFile(join(userData, 'workflows', workflowIds[0], 'runs', runFiles[0]), 'utf8')
+    )
+    expect(runLog).toMatchObject({ status: 'completed' })
+    await page.screenshot({ path: 'output/playwright/workflow-run-complete.png' })
+
     await page
       .getByTestId('recording-preview')
       .evaluate((video: HTMLVideoElement) => (video.style.visibility = ''))
