@@ -2,7 +2,7 @@
 
 The submission deadline is July 21, 2026 at 5:00 PM Pacific Time. The internal target is July 20 so the final day remains a submission buffer.
 
-## Milestone 0: Foundation and architecture - July 14
+## Milestone 0: Foundation and architecture - Complete July 14
 
 Deliverables:
 
@@ -16,7 +16,7 @@ Exit gate:
 
 - A fresh checkout can install dependencies and run all foundation checks from documented commands.
 
-## Milestone 1: Desktop shell and recorder - July 15
+## Milestone 1: Desktop shell and recorder - Complete July 14
 
 Deliverables:
 
@@ -29,7 +29,7 @@ Exit gate:
 
 - A packaged development build records and plays back a workflow on macOS, and cancellation leaves no orphaned recording.
 
-## Milestone 2: Intent interview and analysis - July 16
+## Milestone 2: Intent interview and analysis - In progress
 
 Deliverables:
 

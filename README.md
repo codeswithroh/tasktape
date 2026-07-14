@@ -6,7 +6,7 @@ TaskTape is a desktop automation builder that learns from a recorded demonstrati
 
 ## Current status
 
-Milestone 1 is in progress. The desktop shell and recorder lifecycle pass automated Electron tests with an isolated synthetic stream. Real macOS screen selection and capture still require manual verification before the recorder milestone is complete.
+Milestone 1 is complete. The desktop shell, native macOS screen selection, recording, local persistence, playback, cancellation, and discard flow are verified. Milestone 2 is now building frame analysis and the follow-up intent interview.
 
 The initial release is macOS-first and is being built for OpenAI Build Week. The product vision is broader than the hackathon implementation, but the demo will prove one complete, reliable workflow rather than simulate universal desktop control.
 
