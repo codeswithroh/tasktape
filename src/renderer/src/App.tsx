@@ -19,6 +19,7 @@ import { useAnalysis } from './analysis/useAnalysis'
 import { useRecorder } from './recorder/useRecorder'
 import { SourcePicker } from './recorder/SourcePicker'
 import { ApiKeySettings } from './settings/ApiKeySettings'
+import { WorkflowDraftReview } from './workflow/WorkflowDraftReview'
 
 function formatDuration(milliseconds: number): string {
   const totalSeconds = milliseconds === 0 ? 0 : Math.ceil(milliseconds / 1_000)
@@ -36,7 +37,8 @@ export function App(): React.JSX.Element {
   const [view, setView] = useState<'workflows' | 'settings'>('workflows')
   const recorder = useRecorder()
   const analysis = useAnalysis()
-  const [, setConfirmedAnswers] = useState<Record<string, string> | null>(null)
+  const [confirmedAnswers, setConfirmedAnswers] = useState<Record<string, string> | null>(null)
+  const [isReviewing, setIsReviewing] = useState(false)
   const isBusy =
     recorder.state === 'requesting' ||
     recorder.state === 'saving' ||
@@ -45,6 +47,7 @@ export function App(): React.JSX.Element {
   const resetAnalysis = (): void => {
     analysis.reset()
     setConfirmedAnswers(null)
+    setIsReviewing(false)
   }
 
   return (
@@ -168,11 +171,25 @@ export function App(): React.JSX.Element {
                   </div>
 
                   <div className="recorder-copy">
-                    {analysis.state === 'ready' && analysis.result ? (
+                    {analysis.state === 'ready' &&
+                    analysis.result &&
+                    isReviewing &&
+                    confirmedAnswers ? (
+                      <WorkflowDraftReview
+                        analysis={analysis.result}
+                        answers={confirmedAnswers}
+                        onBack={resetAnalysis}
+                        onEdit={() => setIsReviewing(false)}
+                      />
+                    ) : analysis.state === 'ready' && analysis.result ? (
                       <IntentInterview
                         analysis={analysis.result}
-                        onBack={analysis.reset}
-                        onConfirm={setConfirmedAnswers}
+                        initialAnswers={confirmedAnswers ?? undefined}
+                        onBack={resetAnalysis}
+                        onConfirm={(answers) => {
+                          setConfirmedAnswers(answers)
+                          setIsReviewing(true)
+                        }}
                       />
                     ) : recorder.state === 'ready' && recorder.metadata ? (
                       <>

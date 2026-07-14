@@ -5,23 +5,23 @@ import type { WorkflowAnalysis } from '../../../shared/analysis-schema'
 
 interface IntentInterviewProps {
   analysis: WorkflowAnalysis
+  initialAnswers?: Record<string, string>
   onBack: () => void
   onConfirm: (answers: Record<string, string>) => void
 }
 
 export function IntentInterview({
   analysis,
+  initialAnswers,
   onBack,
   onConfirm
 }: IntentInterviewProps): React.JSX.Element {
-  const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [confirmed, setConfirmed] = useState(false)
+  const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers ?? {})
 
   const cleanText = (value: string): string => value.replace(/\s*[—–]\s*/g, ', ')
 
   const updateAnswer = (id: string, value: string): void => {
     setAnswers((current) => ({ ...current, [id]: value }))
-    setConfirmed(false)
   }
 
   const submit = (): void => {
@@ -30,7 +30,6 @@ export function IntentInterview({
     )
     if (!complete) return
     onConfirm(answers)
-    setConfirmed(true)
   }
 
   return (
@@ -119,9 +118,9 @@ export function IntentInterview({
             </li>
           ))}
         </ol>
-        <button className="record-button" type="submit" disabled={confirmed}>
+        <button className="record-button" type="submit">
           <Check size={16} />
-          {confirmed ? 'Answers saved' : 'Save answers'}
+          Save and review
         </button>
       </form>
     </div>

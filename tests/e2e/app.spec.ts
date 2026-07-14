@@ -91,20 +91,48 @@ test('records, saves, previews, and discards a workflow', async () => {
     }))
     expect(scrollMetrics.scrollHeight).toBeGreaterThan(scrollMetrics.clientHeight)
     await workspace.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
-    await expect(page.getByRole('button', { name: 'Save answers' })).toBeInViewport()
+    await expect(page.getByRole('button', { name: 'Save and review' })).toBeInViewport()
 
-    await page.getByLabel('Which folder should TaskTape check?').fill('/tmp/inbox')
     await page
-      .getByLabel('What should happen when a file name already exists?')
-      .selectOption('Skip and report it')
-    await page.getByRole('button', { name: 'Save answers' }).click()
-    await expect(page.getByRole('button', { name: 'Answers saved' })).toBeDisabled()
+      .getByLabel('Where should TaskTape look for new videos and images?')
+      .fill('/Users/test/Downloads')
+    await page
+      .getByLabel('How do you decide which folder each file belongs in?')
+      .fill('Group files by project, then by media type.')
+    await page
+      .getByLabel('What folder structure should TaskTape create or reuse?')
+      .fill('Project / Raw Video / Images / Exports')
+    await page
+      .getByLabel('Should TaskTape move the original files or keep a copy?')
+      .selectOption('Copy and keep the originals')
+    await page
+      .getByLabel('What should happen when a file does not match any category?')
+      .selectOption('Put it in an Unsorted folder')
     await page
       .getByTestId('recording-preview')
       .evaluate((video: HTMLVideoElement) => (video.style.visibility = 'hidden'))
     await page
       .locator('.recorder-copy')
       .screenshot({ path: 'output/playwright/intent-interview.png' })
+    await page.getByRole('button', { name: 'Save and review' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Review the workflow' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Review the workflow' })).toBeFocused()
+    await expect(page.getByText('Answers saved', { exact: true })).toBeVisible()
+    await expect(page.getByText('Ready for a dry run', { exact: true })).toBeVisible()
+    await expect(page.getByText('No files have changed.', { exact: false })).toBeVisible()
+    await expect(page.getByText('Group files by project, then by media type.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save and review' })).toHaveCount(0)
+    const visibleDraftText = await page.locator('.workflow-draft').innerText()
+    expect(visibleDraftText).not.toContain('—')
+    expect(visibleDraftText).not.toContain('category_rules')
+    await page.screenshot({ path: 'output/playwright/workflow-draft-review.png' })
+
+    await page.getByRole('button', { name: 'Edit answers' }).click()
+    await expect(page.getByRole('heading', { name: 'A few quick questions' })).toBeVisible()
+    await expect(
+      page.getByLabel('How do you decide which folder each file belongs in?')
+    ).toHaveValue('Group files by project, then by media type.')
     await page
       .getByTestId('recording-preview')
       .evaluate((video: HTMLVideoElement) => (video.style.visibility = ''))
