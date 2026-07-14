@@ -26,7 +26,8 @@
 html,
 body,
 #root {
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   background: var(--background);
 }
 
@@ -43,7 +44,9 @@ button {
 .app-shell {
   display: grid;
   grid-template-columns: 224px 1fr;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   background: var(--background);
 }
 
@@ -120,8 +123,13 @@ nav {
   margin-top: auto;
 }
 .workspace {
+  min-width: 0;
+  min-height: 0;
   padding: 54px clamp(32px, 5vw, 72px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .workspace-header {
@@ -185,6 +193,27 @@ h1 {
   display: block;
   height: min(570px, calc(100vh - 210px));
   min-height: 450px;
+}
+
+.recorder.analysis-mode {
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.recorder.analysis-mode .recorder-visual {
+  min-height: 360px;
+  align-self: start;
+}
+
+.recorder.analysis-mode .recorder-copy {
+  align-self: start;
+  padding: 36px 38px 42px;
+}
+
+.recorder.analysis-mode .recorder-copy h2 {
+  margin-bottom: 8px;
+  font-size: 28px;
+  line-height: 1.12;
 }
 
 .source-picker {
@@ -696,8 +725,9 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: 0 0 24px;
+  margin: 0 0 20px;
   padding: 0;
+  min-height: 30px;
   border: 0;
   color: var(--muted);
   background: transparent;
@@ -708,64 +738,100 @@ h1 {
   color: var(--text);
 }
 
-.intent-evidence {
-  display: grid;
-  gap: 6px;
-  margin: -10px 0 22px;
+.back-button:focus-visible,
+.question-reason summary:focus-visible {
+  border-radius: 3px;
+  outline: 3px solid rgb(23 107 75 / 18%);
+  outline-offset: 2px;
 }
 
-.intent-evidence > div {
-  display: grid;
-  grid-template-columns: 16px 1fr;
-  gap: 7px;
-  padding: 9px 10px;
-  border-left: 2px solid var(--border-strong);
+.intent-intro {
+  margin: 0 0 18px !important;
   color: var(--muted);
-  background: var(--surface-subtle);
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
 }
 
-.intent-evidence strong {
+.goal-summary {
+  margin-bottom: 26px;
+  padding: 11px 12px 12px;
+  border-left: 2px solid var(--border-strong);
+  background: var(--surface-subtle);
+}
+
+.goal-summary > span {
   display: block;
-  margin-bottom: 2px;
-  color: var(--text);
-  font-size: 10px;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
   text-transform: uppercase;
 }
 
-.intent-question {
-  margin-bottom: 17px;
-}
-
-.intent-question label {
-  display: block;
-  margin-bottom: 5px;
+.goal-summary p {
+  margin: 0;
   color: var(--text);
   font-size: 12px;
+  line-height: 1.45;
+}
+
+.question-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.intent-question {
+  margin-bottom: 24px;
+}
+
+.intent-question > label {
+  display: block;
+  margin-bottom: 9px;
+  color: var(--text);
+  font-size: 13px;
   font-weight: 650;
-  line-height: 1.4;
+  line-height: 1.45;
+}
+
+.intent-question > label > span {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  margin-right: 7px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+  vertical-align: 1px;
 }
 
 .question-reason {
-  display: flex;
-  align-items: flex-start;
-  gap: 5px;
-  margin-bottom: 7px;
+  margin-top: 7px;
   color: var(--muted);
-  font-size: 10px;
-  line-height: 1.4;
+  font-size: 11px;
 }
 
-.question-reason svg {
-  flex: 0 0 auto;
-  margin-top: 1px;
+.question-reason summary {
+  display: list-item;
+  min-height: 24px;
+  margin-left: 14px;
+  padding: 4px 0;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.question-reason p {
+  margin: 5px 0 0;
+  line-height: 1.45;
 }
 
 .intent-question input,
 .intent-question select {
   width: 100%;
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -779,6 +845,59 @@ h1 {
 .intent-question select:focus {
   border-color: var(--primary);
   outline: 3px solid rgb(23 107 75 / 14%);
+}
+
+.binary-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.binary-options label {
+  position: relative;
+}
+
+.binary-options input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.binary-options span {
+  display: grid;
+  min-height: 44px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 12px;
+}
+
+.binary-options input:checked + span {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--secondary);
+}
+
+.binary-options input:focus-visible + span {
+  outline: 3px solid rgb(23 107 75 / 14%);
+  outline-offset: 1px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .settings-panel {
@@ -926,7 +1045,8 @@ h1 {
 }
 
 @media (max-width: 980px) {
-  .recorder {
+  .recorder,
+  .recorder.analysis-mode {
     grid-template-columns: 1fr;
   }
   .recorder-visual {
@@ -936,6 +1056,10 @@ h1 {
   }
   .source-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .recorder.analysis-mode .recorder-visual {
+    min-height: 190px;
+    border-bottom: 1px solid var(--border);
   }
 }
 

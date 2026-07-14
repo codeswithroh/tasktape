@@ -1,5 +1,5 @@
-import { ArrowLeft, Check, CircleHelp, Eye, Lightbulb } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { ArrowLeft, Check } from 'lucide-react'
+import { useState } from 'react'
 
 import type { WorkflowAnalysis } from '../../../shared/analysis-schema'
 
@@ -16,10 +16,8 @@ export function IntentInterview({
 }: IntentInterviewProps): React.JSX.Element {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [confirmed, setConfirmed] = useState(false)
-  const allAnswered = useMemo(
-    () => analysis.followUpQuestions.every((question) => Boolean(answers[question.id]?.trim())),
-    [analysis.followUpQuestions, answers]
-  )
+
+  const cleanText = (value: string): string => value.replace(/\s*[—–]\s*/g, ', ')
 
   const updateAnswer = (id: string, value: string): void => {
     setAnswers((current) => ({ ...current, [id]: value }))
@@ -27,7 +25,10 @@ export function IntentInterview({
   }
 
   const submit = (): void => {
-    if (!allAnswered) return
+    const complete = analysis.followUpQuestions.every((question) =>
+      Boolean(answers[question.id]?.trim())
+    )
+    if (!complete) return
     onConfirm(answers)
     setConfirmed(true)
   }
@@ -40,80 +41,87 @@ export function IntentInterview({
       </button>
       <p className="step-label success-label">
         <Check size={13} />
-        Recording understood
+        Almost done
       </p>
-      <h2 id="recorder-title">Clarify the intent</h2>
-      <p>{analysis.summary}</p>
+      <h2 id="recorder-title">A few quick questions</h2>
+      <p className="intent-intro">Check the goal, then fill in the missing details.</p>
 
-      <div className="intent-evidence">
-        <div>
-          <Eye size={14} />
-          <span>
-            <strong>Observed</strong>
-            {analysis.observedSteps.length} visible step
-            {analysis.observedSteps.length === 1 ? '' : 's'}
-          </span>
-        </div>
-        <div>
-          <Lightbulb size={14} />
-          <span>
-            <strong>Inferred goal</strong>
-            {analysis.goalHypothesis}
-          </span>
-        </div>
+      <div className="goal-summary">
+        <span>Goal</span>
+        <p>{cleanText(analysis.goalHypothesis)}</p>
       </div>
 
       <form
+        aria-label="Workflow questions"
         onSubmit={(event) => {
           event.preventDefault()
           submit()
         }}
       >
-        {analysis.followUpQuestions.map((question, index) => (
-          <div className="intent-question" key={question.id}>
-            <label htmlFor={question.id}>
-              {index + 1}. {question.prompt}
-            </label>
-            <span className="question-reason">
-              <CircleHelp size={12} />
-              {question.reason}
-            </span>
-            {question.answerType === 'single_choice' ? (
-              <select
-                id={question.id}
-                value={answers[question.id] ?? ''}
-                onChange={(event) => updateAnswer(question.id, event.target.value)}
-              >
-                <option value="">Choose an answer</option>
-                {question.options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            ) : question.answerType === 'boolean' ? (
-              <select
-                id={question.id}
-                value={answers[question.id] ?? ''}
-                onChange={(event) => updateAnswer(question.id, event.target.value)}
-              >
-                <option value="">Choose an answer</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            ) : (
-              <input
-                id={question.id}
-                value={answers[question.id] ?? ''}
-                onChange={(event) => updateAnswer(question.id, event.target.value)}
-                placeholder="Type your answer"
-              />
-            )}
-          </div>
-        ))}
-        <button className="record-button" type="submit" disabled={!allAnswered || confirmed}>
+        <ol className="question-list">
+          {analysis.followUpQuestions.map((question, index) => (
+            <li className="intent-question" key={question.id}>
+              <label htmlFor={question.id}>
+                <span aria-hidden="true">{index + 1}</span>
+                {cleanText(question.prompt)}
+              </label>
+              {question.answerType === 'single_choice' ? (
+                <select
+                  id={question.id}
+                  value={answers[question.id] ?? ''}
+                  onChange={(event) => updateAnswer(question.id, event.target.value)}
+                  aria-describedby={`${question.id}-reason`}
+                  required
+                >
+                  <option value="">Select one</option>
+                  {question.options.map((option) => (
+                    <option key={option} value={option}>
+                      {cleanText(option)}
+                    </option>
+                  ))}
+                </select>
+              ) : question.answerType === 'boolean' ? (
+                <fieldset
+                  className="binary-options"
+                  id={question.id}
+                  aria-describedby={`${question.id}-reason`}
+                >
+                  <legend className="sr-only">{cleanText(question.prompt)}</legend>
+                  {['Yes', 'No'].map((option) => (
+                    <label key={option}>
+                      <input
+                        type="radio"
+                        name={question.id}
+                        value={option.toLowerCase()}
+                        checked={answers[question.id] === option.toLowerCase()}
+                        onChange={(event) => updateAnswer(question.id, event.target.value)}
+                        required
+                      />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              ) : (
+                <input
+                  id={question.id}
+                  value={answers[question.id] ?? ''}
+                  onChange={(event) => updateAnswer(question.id, event.target.value)}
+                  placeholder="Your answer"
+                  aria-describedby={`${question.id}-reason`}
+                  autoComplete="off"
+                  required
+                />
+              )}
+              <details className="question-reason">
+                <summary>Why we ask</summary>
+                <p id={`${question.id}-reason`}>{cleanText(question.reason)}</p>
+              </details>
+            </li>
+          ))}
+        </ol>
+        <button className="record-button" type="submit" disabled={confirmed}>
           <Check size={16} />
-          {confirmed ? 'Intent confirmed' : 'Confirm intent'}
+          {confirmed ? 'Answers saved' : 'Save answers'}
         </button>
       </form>
     </div>

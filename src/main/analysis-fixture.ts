@@ -2,10 +2,8 @@ import type { WorkflowAnalysis } from '../shared/analysis-schema.js'
 
 export const TEST_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
   title: 'Organize captured workflow files',
-  summary:
-    'The recording shows a workspace with a task title, a progress area, and a short list of items.',
-  goalHypothesis:
-    'Turn a repeated file-organizing routine into a reviewable workflow without changing files yet.',
+  summary: 'The recording shows a short file-organizing routine.',
+  goalHypothesis: 'Organize files from one folder without changing anything before review.',
   observedSteps: [
     {
       order: 1,
@@ -29,15 +27,15 @@ export const TEST_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
   followUpQuestions: [
     {
       id: 'source_folder',
-      prompt: 'Which folder should this workflow inspect?',
-      reason: 'TaskTape needs an explicit permission boundary before it can suggest file actions.',
+      prompt: 'Which folder should TaskTape check?',
+      reason: 'This sets a clear boundary for the workflow.',
       answerType: 'text',
       options: []
     },
     {
       id: 'collision_policy',
-      prompt: 'What should happen when a destination already contains a file with the same name?',
-      reason: 'A collision rule prevents accidental overwrites or data loss.',
+      prompt: 'What should happen when a file name already exists?',
+      reason: 'This prevents accidental overwrites.',
       answerType: 'single_choice',
       options: ['Skip and report it', 'Create a unique name', 'Ask before each change']
     }

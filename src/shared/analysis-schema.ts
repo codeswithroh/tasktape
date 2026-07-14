@@ -19,15 +19,15 @@ export const analyzeRecordingInputSchema = z.object({
 })
 
 export const workflowAnalysisSchema = z.object({
-  title: z.string().min(1).max(80),
-  summary: z.string().min(1).max(600),
-  goalHypothesis: z.string().min(1).max(400),
+  title: z.string().min(1).max(60),
+  summary: z.string().min(1).max(240),
+  goalHypothesis: z.string().min(1).max(180),
   observedSteps: z
     .array(
       z.object({
         order: z.number().int().positive(),
-        action: z.string().min(1).max(240),
-        target: z.string().min(1).max(160),
+        action: z.string().min(1).max(180),
+        target: z.string().min(1).max(120),
         evidenceFrameIndexes: z.array(z.number().int().nonnegative()).max(8)
       })
     )
@@ -36,26 +36,26 @@ export const workflowAnalysisSchema = z.object({
     .array(
       z.object({
         name: z.string().min(1).max(80),
-        currentValue: z.string().min(1).max(240),
+        currentValue: z.string().min(1).max(180),
         source: z.enum(['observed', 'inferred']),
-        reason: z.string().min(1).max(240)
+        reason: z.string().min(1).max(160)
       })
     )
     .max(12),
-  uncertainties: z.array(z.string().min(1).max(240)).max(8),
+  uncertainties: z.array(z.string().min(1).max(180)).max(8),
   followUpQuestions: z
     .array(
       z.object({
         id: z.string().regex(/^[a-z][a-z0-9_]{1,39}$/),
-        prompt: z.string().min(1).max(240),
-        reason: z.string().min(1).max(240),
+        prompt: z.string().min(1).max(180),
+        reason: z.string().min(1).max(140),
         answerType: z.enum(['text', 'single_choice', 'boolean']),
         options: z.array(z.string().min(1).max(100)).max(6)
       })
     )
     .min(2)
     .max(5),
-  risks: z.array(z.string().min(1).max(240)).max(8)
+  risks: z.array(z.string().min(1).max(180)).max(8)
 })
 
 export type WorkflowAnalysis = z.infer<typeof workflowAnalysisSchema>

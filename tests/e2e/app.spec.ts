@@ -77,17 +77,37 @@ test('records, saves, previews, and discards a workflow', async () => {
     expect(await readdir(join(userData, 'recordings'))).toHaveLength(2)
 
     await page.getByRole('button', { name: 'Explain this workflow' }).click()
-    await expect(page.getByRole('heading', { name: 'Clarify the intent' })).toBeVisible()
-    await expect(page.getByText('Inferred goal', { exact: true })).toBeVisible()
-    await page.getByLabel('1. Which folder should this workflow inspect?').fill('/tmp/inbox')
+    await expect(page.getByRole('heading', { name: 'A few quick questions' })).toBeVisible()
+    await expect(page.getByText('Goal', { exact: true })).toBeVisible()
+    const visibleInterviewText = await page.locator('.intent-interview').innerText()
+    expect(visibleInterviewText).not.toContain('—')
+    expect(visibleInterviewText).not.toContain('source_folder')
+
+    await page.setViewportSize({ width: 900, height: 620 })
+    const workspace = page.locator('.workspace')
+    const scrollMetrics = await workspace.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight
+    }))
+    expect(scrollMetrics.scrollHeight).toBeGreaterThan(scrollMetrics.clientHeight)
+    await workspace.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
+    await expect(page.getByRole('button', { name: 'Save answers' })).toBeInViewport()
+
+    await page.getByLabel('Which folder should TaskTape check?').fill('/tmp/inbox')
     await page
-      .getByLabel(
-        '2. What should happen when a destination already contains a file with the same name?'
-      )
+      .getByLabel('What should happen when a file name already exists?')
       .selectOption('Skip and report it')
-    await page.getByRole('button', { name: 'Confirm intent' }).click()
-    await expect(page.getByRole('button', { name: 'Intent confirmed' })).toBeDisabled()
-    await page.locator('.recorder').screenshot({ path: 'output/playwright/intent-interview.png' })
+    await page.getByRole('button', { name: 'Save answers' }).click()
+    await expect(page.getByRole('button', { name: 'Answers saved' })).toBeDisabled()
+    await page
+      .getByTestId('recording-preview')
+      .evaluate((video: HTMLVideoElement) => (video.style.visibility = 'hidden'))
+    await page
+      .locator('.recorder-copy')
+      .screenshot({ path: 'output/playwright/intent-interview.png' })
+    await page
+      .getByTestId('recording-preview')
+      .evaluate((video: HTMLVideoElement) => (video.style.visibility = ''))
     await page.getByRole('button', { name: 'Back to recording' }).click()
 
     await page.addStyleTag({

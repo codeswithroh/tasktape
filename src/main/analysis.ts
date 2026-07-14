@@ -15,6 +15,9 @@ const ANALYSIS_INSTRUCTIONS = `You analyze a sparse sequence of frames sampled f
 Describe only what the frames support. Never claim that an action occurred between frames unless it is visible.
 Separate observed values from inferred values. Ask two to five high-value follow-up questions that resolve intent,
 scope, safety boundaries, variable inputs, and ambiguous outcomes. Questions must be specific to this demonstration.
+Write in natural, everyday language. Keep the summary to one sentence of at most 20 words and the goal to at most
+18 words. Keep each question short; include exact file or folder names only when needed. Keep each reason to one
+brief sentence. Do not use em dashes, internal IDs, jargon, or snake case unless it is part of an exact filename.
 Do not generate executable code or claim that an automation is ready.`
 
 export function buildAnalysisContent(input: AnalyzeRecordingInput): ResponseInputContent[] {

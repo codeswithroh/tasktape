@@ -98,7 +98,7 @@ export function App(): React.JSX.Element {
             </header>
 
             <section
-              className={`recorder state-${recorder.state} ${recorder.state === 'choosing' ? 'source-mode' : ''}`}
+              className={`recorder state-${recorder.state} ${recorder.state === 'choosing' ? 'source-mode' : ''} ${analysis.state === 'ready' ? 'analysis-mode' : ''}`}
               aria-labelledby="recorder-title"
             >
               {recorder.state === 'choosing' ? (
