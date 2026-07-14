@@ -181,6 +181,7 @@ h1 {
 }
 
 .recorder-visual {
+  position: relative;
   display: grid;
   place-items: center;
   align-content: center;
@@ -260,6 +261,63 @@ h1 {
   font-weight: 600;
 }
 
+.recording-live {
+  display: grid;
+  place-items: center;
+  max-width: 360px;
+  text-align: center;
+}
+
+.recording-live > svg {
+  margin-bottom: 16px;
+  color: var(--primary);
+}
+
+.recording-live strong {
+  font-size: 19px;
+}
+
+.recording-live time {
+  margin-top: 9px;
+  font-family: 'SF Mono', 'Roboto Mono', monospace;
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
+}
+
+.recording-live p {
+  max-width: 310px;
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.recording-pulse {
+  position: absolute;
+  top: 22px;
+  left: 22px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 5px rgb(213 93 63 / 14%);
+}
+
+.recording-preview {
+  width: 100%;
+  max-height: 340px;
+  aspect-ratio: 16 / 9;
+  border: 1px solid #bec9c1;
+  border-radius: 7px;
+  background: #151a17;
+  object-fit: contain;
+  box-shadow: 0 16px 34px rgb(32 49 38 / 9%);
+}
+
+.spinner {
+  animation: spin 800ms linear infinite;
+}
+
 .recorder-copy {
   align-self: center;
   padding: 54px 44px;
@@ -288,12 +346,122 @@ h1 {
   border-radius: var(--radius-sm);
   color: white;
   background: var(--primary);
+  font-size: 13px;
   font-weight: 650;
+}
+
+.record-button:not(:disabled):hover {
+  background: #125a3e;
+}
+
+.record-button:not(:disabled):focus-visible,
+.cancel-button:focus-visible,
+.secondary-actions button:focus-visible {
+  outline: 3px solid rgb(23 107 75 / 22%);
+  outline-offset: 2px;
 }
 
 .record-button:disabled {
   cursor: not-allowed;
   opacity: 0.68;
+}
+
+.stop-button {
+  background: var(--accent);
+}
+
+.stop-button:not(:disabled):hover {
+  background: #b84930;
+}
+
+.cancel-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  margin-top: 8px;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+}
+
+.cancel-button:hover {
+  color: var(--text);
+}
+
+.success-label,
+.recording-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.success-label {
+  color: var(--primary);
+}
+
+.recording-label {
+  color: var(--accent);
+}
+
+.recording-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: -6px 0 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.recording-facts div {
+  padding: 11px 12px;
+}
+
+.recording-facts div + div {
+  border-left: 1px solid var(--border);
+}
+
+.recording-facts dt {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.recording-facts dd {
+  margin: 4px 0 0;
+  font-family: 'SF Mono', 'Roboto Mono', monospace;
+  font-size: 12px;
+}
+
+.secondary-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.secondary-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--surface);
+  font-size: 12px;
+}
+
+.secondary-actions button:hover {
+  border-color: #aebbb2;
+  background: var(--surface-subtle);
+}
+
+.secondary-actions .danger-action {
+  color: #a13d28;
 }
 .honesty-note {
   margin: 12px 0 0;
@@ -332,5 +500,11 @@ h1 {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }

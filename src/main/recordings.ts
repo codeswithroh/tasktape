@@ -22,6 +22,7 @@ export async function saveRecording(
   input: SaveRecordingInput
 ): Promise<RecordingMetadata> {
   const details = recordingDetailsSchema.parse(input)
+  if (!(input.data instanceof ArrayBuffer)) throw new Error('Recording data must be an ArrayBuffer')
   const bytes = input.data.byteLength
 
   if (bytes === 0 || bytes > MAX_RECORDING_BYTES) {

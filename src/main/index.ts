@@ -4,6 +4,7 @@ import {
   app,
   BrowserWindow,
   desktopCapturer,
+  type IpcMainInvokeEvent,
   ipcMain,
   session,
   shell,
@@ -22,17 +23,29 @@ function recordingsRoot(): string {
   return join(app.getPath('userData'), 'recordings')
 }
 
+function assertTrustedSender(event: IpcMainInvokeEvent): void {
+  const senderUrl = event.senderFrame?.url
+  const developmentUrl = process.env.ELECTRON_RENDERER_URL
+  const isTrusted = developmentUrl
+    ? senderUrl?.startsWith(developmentUrl)
+    : senderUrl?.startsWith('file://')
+  if (!isTrusted) throw new Error('Rejected IPC request from an untrusted renderer')
+}
+
 function registerRecorderIpc(): void {
-  ipcMain.handle('recorder:get-permission-status', () => {
+  ipcMain.handle('recorder:get-permission-status', (event) => {
+    assertTrustedSender(event)
     if (process.platform !== 'darwin') return 'unknown'
     return systemPreferences.getMediaAccessStatus('screen')
   })
 
-  ipcMain.handle('recorder:save', (_event, input: SaveRecordingInput) => {
+  ipcMain.handle('recorder:save', (event, input: SaveRecordingInput) => {
+    assertTrustedSender(event)
     return saveRecording(recordingsRoot(), input)
   })
 
-  ipcMain.handle('recorder:remove', (_event, id: string) => {
+  ipcMain.handle('recorder:remove', (event, id: string) => {
+    assertTrustedSender(event)
     return removeRecording(recordingsRoot(), recordingIdSchema.parse(id))
   })
 }
