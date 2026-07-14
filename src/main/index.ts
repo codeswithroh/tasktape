@@ -11,11 +11,13 @@ import {
   safeStorage,
   session,
   shell,
-  systemPreferences
+  systemPreferences,
+  webContents
 } from 'electron'
 
-import type { SaveRecordingInput } from '../shared/contracts.js'
+import type { CaptureSource, SaveRecordingInput } from '../shared/contracts.js'
 import type { AnalyzeRecordingInput } from '../shared/analysis-contracts.js'
+import { captureSourceIdSchema } from '../shared/capture-source-schema.js'
 import { recordingIdSchema } from '../shared/recording-schema.js'
 import { analyzeRecording, requestOpenAIAnalysis } from './analysis.js'
 import { TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
@@ -49,6 +51,58 @@ const credentialCipher: CredentialCipher = {
   decrypt: (encrypted) => safeStorage.decryptString(encrypted)
 }
 
+const selectedCaptureSources = new Map<number, string>()
+const TEST_CAPTURE_THUMBNAIL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
+const TEST_CAPTURE_SOURCES: CaptureSource[] = [
+  {
+    id: 'screen:test:0',
+    name: 'Entire screen',
+    kind: 'screen',
+    thumbnailUrl: TEST_CAPTURE_THUMBNAIL,
+    appIconUrl: null
+  },
+  {
+    id: 'window:test:finder',
+    name: 'Downloads - Finder',
+    kind: 'window',
+    thumbnailUrl: TEST_CAPTURE_THUMBNAIL,
+    appIconUrl: null
+  },
+  {
+    id: 'window:test:browser',
+    name: 'Creator dashboard - Browser',
+    kind: 'window',
+    thumbnailUrl: TEST_CAPTURE_THUMBNAIL,
+    appIconUrl: null
+  }
+]
+
+async function desktopSources(): Promise<Electron.DesktopCapturerSource[]> {
+  return desktopCapturer.getSources({
+    types: ['screen', 'window'],
+    thumbnailSize: { width: 360, height: 203 },
+    fetchWindowIcons: true
+  })
+}
+
+async function captureSources(): Promise<CaptureSource[]> {
+  if (process.env.TASKTAPE_E2E === '1') return TEST_CAPTURE_SOURCES
+  const sources = await desktopSources()
+  return sources
+    .map((source) => ({
+      id: source.id,
+      name: source.name,
+      kind: source.id.startsWith('screen:') ? ('screen' as const) : ('window' as const),
+      thumbnailUrl: source.thumbnail.toDataURL(),
+      appIconUrl: source.appIcon?.toDataURL() ?? null
+    }))
+    .sort((left, right) => {
+      if (left.kind !== right.kind) return left.kind === 'screen' ? -1 : 1
+      return left.name.localeCompare(right.name)
+    })
+}
+
 function assertTrustedSender(event: IpcMainInvokeEvent): void {
   const senderUrl = event.senderFrame?.url
   const developmentUrl = process.env.ELECTRON_RENDERER_URL
@@ -68,6 +122,21 @@ function registerRecorderIpc(): void {
     assertTrustedSender(event)
     if (process.platform !== 'darwin') return 'unknown'
     return systemPreferences.getMediaAccessStatus('screen')
+  })
+
+  ipcMain.handle('recorder:list-sources', (event) => {
+    assertTrustedSender(event)
+    return captureSources()
+  })
+
+  ipcMain.handle('recorder:select-source', async (event, rawId: string) => {
+    assertTrustedSender(event)
+    const id = captureSourceIdSchema.parse(rawId)
+    const sources = await captureSources()
+    if (!sources.some((source) => source.id === id)) {
+      throw new Error('That screen or window is no longer available.')
+    }
+    selectedCaptureSources.set(event.sender.id, id)
   })
 
   ipcMain.handle('recorder:save', (event, input: SaveRecordingInput) => {
@@ -115,17 +184,18 @@ function registerSettingsIpc(): void {
 }
 
 function registerDisplayCapture(): void {
-  session.defaultSession.setDisplayMediaRequestHandler(
-    async (_request, callback) => {
-      const sources = await desktopCapturer.getSources({
-        types: ['screen', 'window'],
-        thumbnailSize: { width: 0, height: 0 },
-        fetchWindowIcons: false
-      })
-      callback({ video: sources[0] })
-    },
-    { useSystemPicker: true }
-  )
+  session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+    const owner = request.frame ? webContents.fromFrame(request.frame) : undefined
+    const selectedId = owner ? selectedCaptureSources.get(owner.id) : undefined
+    if (owner) selectedCaptureSources.delete(owner.id)
+    if (!selectedId) {
+      callback({})
+      return
+    }
+
+    const selected = (await desktopSources()).find((source) => source.id === selectedId)
+    callback(selected ? { video: selected } : {})
+  })
 }
 
 function createWindow(): void {

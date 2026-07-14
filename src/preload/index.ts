@@ -15,6 +15,8 @@ const bridge: TaskTapeBridge = {
   testMode: process.env.TASKTAPE_E2E === '1',
   recorder: {
     getPermissionStatus: () => ipcRenderer.invoke('recorder:get-permission-status'),
+    listSources: () => ipcRenderer.invoke('recorder:list-sources'),
+    selectSource: (id: string) => ipcRenderer.invoke('recorder:select-source', id),
     save: (input: SaveRecordingInput) => ipcRenderer.invoke('recorder:save', input),
     remove: (id: string) => ipcRenderer.invoke('recorder:remove', id)
   },

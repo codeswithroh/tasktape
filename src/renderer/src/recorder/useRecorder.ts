@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { RecordingMetadata, ScreenPermissionStatus } from '../../../shared/contracts'
+import type {
+  CaptureSource,
+  RecordingMetadata,
+  ScreenPermissionStatus
+} from '../../../shared/contracts'
 import type { ExtractedFrame } from '../../../shared/analysis-contracts'
 import { extractFrames } from '../analysis/extractFrames'
 import { requestCaptureStream, selectRecordingMimeType } from './capture'
 
 export type RecorderState =
-  'idle' | 'requesting' | 'recording' | 'saving' | 'extracting' | 'ready' | 'error'
+  'idle' | 'choosing' | 'requesting' | 'recording' | 'saving' | 'extracting' | 'ready' | 'error'
 
 interface RecorderController {
   state: RecorderState
@@ -16,8 +20,12 @@ interface RecorderController {
   metadata: RecordingMetadata | null
   frames: ExtractedFrame[]
   frameError: string | null
+  sources: CaptureSource[]
   error: string | null
   start: () => Promise<void>
+  refreshSources: () => Promise<void>
+  chooseSource: (id: string) => Promise<void>
+  cancelSourceSelection: () => void
   stop: () => void
   cancel: () => void
   discard: () => Promise<void>
@@ -39,6 +47,7 @@ export function useRecorder(): RecorderController {
   const [metadata, setMetadata] = useState<RecordingMetadata | null>(null)
   const [frames, setFrames] = useState<ExtractedFrame[]>([])
   const [frameError, setFrameError] = useState<string | null>(null)
+  const [sources, setSources] = useState<CaptureSource[]>([])
   const [error, setError] = useState<string | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -118,50 +127,82 @@ export function useRecorder(): RecorderController {
     [clearTimer, stopTracks]
   )
 
+  const chooseSource = useCallback(
+    async (sourceId: string) => {
+      if (recorderRef.current) return
+      setState('requesting')
+
+      try {
+        await window.tasktape.recorder.selectSource(sourceId)
+        const stream = await requestCaptureStream(window.tasktape.testMode)
+        const mimeType = selectRecordingMimeType()
+        const recorder = new MediaRecorder(stream, {
+          mimeType,
+          videoBitsPerSecond: 2_500_000
+        })
+
+        streamRef.current = stream
+        recorderRef.current = recorder
+        chunksRef.current = []
+        dispositionRef.current = 'save'
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) chunksRef.current.push(event.data)
+        }
+        recorder.onstop = () => void handleStopped(mimeType)
+        recorder.onerror = () => {
+          setError('The screen recorder stopped unexpectedly.')
+          setState('error')
+        }
+
+        recorder.start(250)
+        startedAtRef.current = Date.now()
+        timerRef.current = window.setInterval(() => {
+          setElapsedMs(Date.now() - startedAtRef.current)
+        }, 200)
+        setPermissionStatus('granted')
+        setSources([])
+        setState('recording')
+      } catch (caught) {
+        stopTracks()
+        setError(readableError(caught))
+        setState('error')
+      }
+    },
+    [handleStopped, stopTracks]
+  )
+
+  const refreshSources = useCallback(async () => {
+    setState('choosing')
+    setSources([])
+    setError(null)
+    try {
+      const availableSources = await window.tasktape.recorder.listSources()
+      if (availableSources.length === 0) {
+        throw new Error('No screens or application windows are available to record.')
+      }
+      setSources(availableSources)
+    } catch (caught) {
+      setError(readableError(caught))
+      setState('error')
+    }
+  }, [])
+
   const start = useCallback(async () => {
-    if (recorderRef.current || state === 'requesting' || state === 'saving') return
+    if (recorderRef.current || state === 'choosing' || state === 'requesting') return
     revokePreview()
     setMetadata(null)
     setFrames([])
     setFrameError(null)
     setError(null)
     setElapsedMs(0)
-    setState('requesting')
+    await refreshSources()
+  }, [refreshSources, revokePreview, state])
 
-    try {
-      const stream = await requestCaptureStream(window.tasktape.testMode)
-      const mimeType = selectRecordingMimeType()
-      const recorder = new MediaRecorder(stream, {
-        mimeType,
-        videoBitsPerSecond: 2_500_000
-      })
-
-      streamRef.current = stream
-      recorderRef.current = recorder
-      chunksRef.current = []
-      dispositionRef.current = 'save'
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data)
-      }
-      recorder.onstop = () => void handleStopped(mimeType)
-      recorder.onerror = () => {
-        setError('The screen recorder stopped unexpectedly.')
-        setState('error')
-      }
-
-      recorder.start(250)
-      startedAtRef.current = Date.now()
-      timerRef.current = window.setInterval(() => {
-        setElapsedMs(Date.now() - startedAtRef.current)
-      }, 200)
-      setPermissionStatus('granted')
-      setState('recording')
-    } catch (caught) {
-      stopTracks()
-      setError(readableError(caught))
-      setState('error')
-    }
-  }, [handleStopped, revokePreview, state, stopTracks])
+  const cancelSourceSelection = useCallback(() => {
+    setSources([])
+    setError(null)
+    setState('idle')
+  }, [])
 
   const stop = useCallback(() => {
     if (recorderRef.current?.state !== 'recording') return
@@ -179,6 +220,7 @@ export function useRecorder(): RecorderController {
     if (metadata) await window.tasktape.recorder.remove(metadata.id)
     revokePreview()
     setMetadata(null)
+    setSources([])
     setFrames([])
     setFrameError(null)
     setElapsedMs(0)
@@ -194,8 +236,12 @@ export function useRecorder(): RecorderController {
     metadata,
     frames,
     frameError,
+    sources,
     error,
     start,
+    refreshSources,
+    chooseSource,
+    cancelSourceSelection,
     stop,
     cancel,
     discard

@@ -15,6 +15,10 @@ Electron is used because its desktop capture and process isolation APIs let the 
 
 `contextIsolation`, renderer sandboxing, and disabled Node integration are mandatory. New IPC operations require a typed contract and input validation.
 
+## Capture source selection
+
+TaskTape lists full displays and open application windows through Electron `desktopCapturer`, then renders a grouped thumbnail gallery in the sandboxed UI. A source ID selected by the user is validated against a freshly enumerated main-process source list. The display-media handler consumes that one pending selection and rejects requests without one; the renderer cannot nominate an arbitrary capture target.
+
 ## Analysis pipeline
 
 The recorder saves a local video, then the sandboxed renderer uses native browser media decoding and a canvas to extract at most eight evenly spaced, downscaled JPEG frames. This avoids adding a GPL-licensed static `ffmpeg` distribution to the desktop package. TaskTape sends only those selected frames to the OpenAI Responses API. Audio capture and transcription are not implemented in Milestone 2's current scope.

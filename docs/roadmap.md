@@ -21,6 +21,7 @@ Exit gate:
 Deliverables:
 
 - Desktop application shell with clear permission states.
+- Grouped full-display and application-window source gallery.
 - Record, stop, cancel, and playback flow.
 - Local recording metadata and cleanup.
 - A test fixture recording path.

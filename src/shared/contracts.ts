@@ -20,6 +20,14 @@ export const APP_NAME = 'TaskTape'
 export type ScreenPermissionStatus =
   'not-determined' | 'granted' | 'denied' | 'restricted' | 'unknown'
 
+export interface CaptureSource {
+  id: string
+  name: string
+  kind: 'screen' | 'window'
+  thumbnailUrl: string
+  appIconUrl: string | null
+}
+
 export interface SaveRecordingInput {
   data: ArrayBuffer
   durationMs: number
@@ -44,6 +52,8 @@ export interface TaskTapeBridge {
   testMode: boolean
   recorder: {
     getPermissionStatus: () => Promise<ScreenPermissionStatus>
+    listSources: () => Promise<CaptureSource[]>
+    selectSource: (id: string) => Promise<void>
     save: (input: SaveRecordingInput) => Promise<RecordingMetadata>
     remove: (id: string) => Promise<void>
   }

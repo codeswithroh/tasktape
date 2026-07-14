@@ -49,6 +49,18 @@ test('records, saves, previews, and discards a workflow', async () => {
   try {
     const page = await application.firstWindow()
     await page.getByRole('button', { name: 'Start recording' }).click()
+    await expect(page.getByRole('heading', { name: 'Choose what to record' })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Share entire screen: Entire screen' })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Share window: Downloads - Finder' })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Share window: Creator dashboard - Browser' })
+    ).toBeVisible()
+    await page.locator('.recorder').screenshot({ path: 'output/playwright/source-picker.png' })
+    await page.getByRole('button', { name: 'Share window: Downloads - Finder' }).click()
     await expect(page.getByRole('button', { name: 'Stop and save' })).toBeVisible()
     await page.waitForTimeout(650)
     await page.getByRole('button', { name: 'Stop and save' }).click()
@@ -98,9 +110,30 @@ test('cancels without persisting a recording', async () => {
   try {
     const page = await application.firstWindow()
     await page.getByRole('button', { name: 'Start recording' }).click()
+    await page.getByRole('button', { name: 'Share entire screen: Entire screen' }).click()
     await expect(page.getByRole('button', { name: 'Cancel recording' })).toBeVisible()
     await page.waitForTimeout(300)
     await page.getByRole('button', { name: 'Cancel recording' }).click()
+    await expect(page.getByRole('button', { name: 'Start recording' })).toBeVisible()
+    await expect(readdir(join(userData, 'recordings'))).rejects.toMatchObject({ code: 'ENOENT' })
+  } finally {
+    await application.close()
+    await rm(userData, { recursive: true, force: true })
+  }
+})
+
+test('cancels the source chooser without starting capture', async () => {
+  const { application, userData } = await launchTestApp()
+
+  try {
+    const page = await application.firstWindow()
+    await page.getByRole('button', { name: 'Start recording' }).click()
+    await expect(page.getByRole('heading', { name: 'Choose what to record' })).toBeVisible()
+    await page.getByRole('button', { name: 'Refresh open windows' }).click()
+    await expect(
+      page.getByRole('button', { name: 'Share entire screen: Entire screen' })
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page.getByRole('button', { name: 'Start recording' })).toBeVisible()
     await expect(readdir(join(userData, 'recordings'))).rejects.toMatchObject({ code: 'ENOENT' })
   } finally {
