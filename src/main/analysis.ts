@@ -41,12 +41,12 @@ export function buildAnalysisContent(input: AnalyzeRecordingInput): ResponseInpu
 }
 
 export async function requestOpenAIAnalysis(
-  input: AnalyzeRecordingInput
+  input: AnalyzeRecordingInput,
+  configuredApiKey = process.env.OPENAI_API_KEY
 ): Promise<WorkflowAnalysis> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY is not configured for TaskTape.')
+  if (!configuredApiKey) throw new Error('An OpenAI API key is not configured for TaskTape.')
 
-  const client = new OpenAI({ apiKey })
+  const client = new OpenAI({ apiKey: configuredApiKey })
   const response = await client.responses.parse({
     model: process.env.OPENAI_MODEL || 'gpt-5.6',
     instructions: ANALYSIS_INSTRUCTIONS,

@@ -34,6 +34,11 @@ export interface RecordingMetadata {
   bytes: number
 }
 
+export interface ApiKeyStatus {
+  configured: boolean
+  source: 'app' | 'environment' | 'none'
+}
+
 export interface TaskTapeBridge {
   appInfo: AppInfo
   testMode: boolean
@@ -44,6 +49,11 @@ export interface TaskTapeBridge {
   }
   analysis: {
     analyze: (input: AnalyzeRecordingInput) => Promise<WorkflowAnalysis>
+  }
+  settings: {
+    getApiKeyStatus: () => Promise<ApiKeyStatus>
+    saveApiKey: (apiKey: string) => Promise<ApiKeyStatus>
+    clearApiKey: () => Promise<ApiKeyStatus>
   }
 }
 import type { AnalyzeRecordingInput } from './analysis-contracts.js'

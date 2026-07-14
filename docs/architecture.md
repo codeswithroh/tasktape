@@ -35,7 +35,7 @@ Milestone 1 begins with filesystem-backed local metadata. SQLite will be introdu
 
 ## Security
 
-- API credentials remain in the main process and are never exposed to the renderer.
+- API credentials remain in the main process and are never exposed back to the renderer. Keys entered in Settings are encrypted through Electron `safeStorage`, persisted with mode `0600`, and take precedence over the development-only environment fallback.
 - Recordings and extracted frames are ignored by Git and local by default.
 - Destructive actions require explicit approval and an available rollback strategy.
 - External links are opened through the operating system after the application denies new in-app windows.

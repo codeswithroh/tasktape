@@ -1,5 +1,5 @@
 import { _electron as electron, expect, test } from '@playwright/test'
-import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -103,6 +103,35 @@ test('cancels without persisting a recording', async () => {
     await page.getByRole('button', { name: 'Cancel recording' }).click()
     await expect(page.getByRole('button', { name: 'Start recording' })).toBeVisible()
     await expect(readdir(join(userData, 'recordings'))).rejects.toMatchObject({ code: 'ENOENT' })
+  } finally {
+    await application.close()
+    await rm(userData, { recursive: true, force: true })
+  }
+})
+
+test('stores and clears an app-managed API key without exposing plaintext', async () => {
+  const { application, userData } = await launchTestApp()
+  const fakeApiKey = `sk-proj-${'e2e'.repeat(30)}`
+
+  try {
+    const page = await application.firstWindow()
+    await page.getByRole('button', { name: 'Settings' }).click()
+    await expect(page.getByRole('heading', { name: 'OpenAI connection' })).toBeVisible()
+
+    await page.getByLabel('OpenAI API key').fill(fakeApiKey)
+    await page.getByRole('button', { name: 'Save key' }).click()
+    await expect(page.getByText('App key configured')).toBeVisible()
+    await expect(page.getByLabel('OpenAI API key')).toHaveValue('')
+
+    const stored = await readFile(join(userData, 'settings', 'credentials.json'), 'utf8')
+    expect(stored).not.toContain(fakeApiKey)
+    await page.screenshot({ path: 'output/playwright/api-key-settings.png' })
+
+    await page.getByRole('button', { name: 'Remove app key' }).click()
+    await expect(page.getByText('The app-managed key was removed.')).toBeVisible()
+    await expect(readFile(join(userData, 'settings', 'credentials.json'))).rejects.toMatchObject({
+      code: 'ENOENT'
+    })
   } finally {
     await application.close()
     await rm(userData, { recursive: true, force: true })

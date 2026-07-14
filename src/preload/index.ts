@@ -20,6 +20,11 @@ const bridge: TaskTapeBridge = {
   },
   analysis: {
     analyze: (input: AnalyzeRecordingInput) => ipcRenderer.invoke('analysis:analyze', input)
+  },
+  settings: {
+    getApiKeyStatus: () => ipcRenderer.invoke('settings:get-api-key-status'),
+    saveApiKey: (apiKey: string) => ipcRenderer.invoke('settings:save-api-key', apiKey),
+    clearApiKey: () => ipcRenderer.invoke('settings:clear-api-key')
   }
 }
 

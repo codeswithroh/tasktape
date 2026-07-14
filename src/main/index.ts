@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 import { config } from 'dotenv'
 import {
@@ -7,6 +8,7 @@ import {
   desktopCapturer,
   type IpcMainInvokeEvent,
   ipcMain,
+  safeStorage,
   session,
   shell,
   systemPreferences
@@ -15,8 +17,15 @@ import {
 import type { SaveRecordingInput } from '../shared/contracts.js'
 import type { AnalyzeRecordingInput } from '../shared/analysis-contracts.js'
 import { recordingIdSchema } from '../shared/recording-schema.js'
-import { analyzeRecording } from './analysis.js'
+import { analyzeRecording, requestOpenAIAnalysis } from './analysis.js'
 import { TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
+import {
+  clearApiKey,
+  type CredentialCipher,
+  getApiKeyStatus,
+  resolveApiKey,
+  saveApiKey
+} from './api-credentials.js'
 import { removeRecording, saveRecording } from './recordings.js'
 
 if (!app.isPackaged) {
@@ -34,12 +43,23 @@ function recordingsRoot(): string {
   return join(app.getPath('userData'), 'recordings')
 }
 
+const credentialCipher: CredentialCipher = {
+  isAvailable: () => safeStorage.isEncryptionAvailable(),
+  encrypt: (plainText) => safeStorage.encryptString(plainText),
+  decrypt: (encrypted) => safeStorage.decryptString(encrypted)
+}
+
 function assertTrustedSender(event: IpcMainInvokeEvent): void {
   const senderUrl = event.senderFrame?.url
   const developmentUrl = process.env.ELECTRON_RENDERER_URL
-  const isTrusted = developmentUrl
-    ? senderUrl?.startsWith(developmentUrl)
-    : senderUrl?.startsWith('file://')
+  let isTrusted = false
+  try {
+    isTrusted = developmentUrl
+      ? new URL(senderUrl ?? '').origin === new URL(developmentUrl).origin
+      : senderUrl === pathToFileURL(join(__dirname, '../renderer/index.html')).href
+  } catch {
+    isTrusted = false
+  }
   if (!isTrusted) throw new Error('Rejected IPC request from an untrusted renderer')
 }
 
@@ -62,12 +82,35 @@ function registerRecorderIpc(): void {
 }
 
 function registerAnalysisIpc(): void {
-  ipcMain.handle('analysis:analyze', (event, input: AnalyzeRecordingInput) => {
+  ipcMain.handle('analysis:analyze', async (event, input: AnalyzeRecordingInput) => {
     assertTrustedSender(event)
     if (process.env.TASKTAPE_E2E === '1') {
       return analyzeRecording(input, async () => TEST_WORKFLOW_ANALYSIS)
     }
-    return analyzeRecording(input)
+    const credential = await resolveApiKey(
+      app.getPath('userData'),
+      process.env.OPENAI_API_KEY,
+      credentialCipher
+    )
+    if (!credential.apiKey) throw new Error('Add an OpenAI API key in Settings before analyzing.')
+    return analyzeRecording(input, (validatedInput) =>
+      requestOpenAIAnalysis(validatedInput, credential.apiKey ?? undefined)
+    )
+  })
+}
+
+function registerSettingsIpc(): void {
+  ipcMain.handle('settings:get-api-key-status', (event) => {
+    assertTrustedSender(event)
+    return getApiKeyStatus(app.getPath('userData'), process.env.OPENAI_API_KEY, credentialCipher)
+  })
+  ipcMain.handle('settings:save-api-key', (event, apiKey: string) => {
+    assertTrustedSender(event)
+    return saveApiKey(app.getPath('userData'), apiKey, credentialCipher)
+  })
+  ipcMain.handle('settings:clear-api-key', (event) => {
+    assertTrustedSender(event)
+    return clearApiKey(app.getPath('userData'), process.env.OPENAI_API_KEY, credentialCipher)
   })
 }
 
@@ -105,7 +148,11 @@ function createWindow(): void {
 
   window.once('ready-to-show', () => window.show())
   window.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url)
+    try {
+      if (new URL(url).protocol === 'https:') void shell.openExternal(url)
+    } catch {
+      // Invalid and non-HTTPS URLs stay closed.
+    }
     return { action: 'deny' }
   })
 
@@ -119,6 +166,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   registerRecorderIpc()
   registerAnalysisIpc()
+  registerSettingsIpc()
   registerDisplayCapture()
   createWindow()
   app.on('activate', () => {

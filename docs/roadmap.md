@@ -44,6 +44,18 @@ Exit gate:
 
 - The reference recording produces a schema-valid analysis and useful follow-up questions in both mocked and live-model test runs.
 
+## Milestone 2.5: User-managed credentials - Complete July 14
+
+Deliverables:
+
+- In-app API-key status, save, replace, and clear controls.
+- Operating-system-backed encryption with no plaintext read-back path.
+- Main-process credential resolution with app-key precedence and a development environment fallback.
+
+Exit gate:
+
+- A real Electron test saves an app key, proves the persisted file excludes its plaintext, resolves app-key status, and removes it successfully.
+
 ## Milestone 3: Workflow recipe and dry run - July 17
 
 Deliverables:
