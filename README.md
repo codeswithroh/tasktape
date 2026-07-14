@@ -22,9 +22,21 @@ The initial release is macOS-first and is being built for OpenAI Build Week. The
 ## Documentation
 
 - [Product brief](docs/product-brief.md)
+- [Architecture](docs/architecture.md)
 - [Milestone roadmap](docs/roadmap.md)
 - [Verification log](docs/verification.md)
 
 ## Development
 
-The technical stack and exact setup commands will be added at the end of Milestone 0, after the dependency audit is complete. See `AGENTS.md` for the engineering and verification rules that govern this repository.
+Prerequisites: Node.js 22+, pnpm 11.7.0, and macOS for desktop capture verification.
+
+```bash
+cd /Users/rohitpurkait/Documents/codex_build_week
+pnpm install
+pnpm check
+pnpm dev
+```
+
+The ignored `.env.local` file contains local credentials. Start from `.env.example` on a new machine and never commit secret values.
+
+See `AGENTS.md` for the engineering and verification rules that govern this repository.

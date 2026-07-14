@@ -9,6 +9,7 @@ release/
 coverage/
 playwright-report/
 test-results/
+output/
 *.log
 *.mp4
 *.mov
