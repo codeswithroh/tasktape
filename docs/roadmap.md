@@ -29,13 +29,13 @@ Exit gate:
 
 - A packaged development build records and plays back a workflow on macOS, and cancellation leaves no orphaned recording.
 
-## Milestone 2: Intent interview and analysis - In progress
+## Milestone 2: Intent interview and analysis - Complete July 14
 
-Current progress: local bounded frame extraction, strict analysis schemas, the isolated main-process OpenAI client, and the editable intent interview are implemented and deterministically verified. The live model exit gate is blocked by API quota, and audio extraction remains planned.
+Scope decision: the hackathon build uses bounded visual frames plus the intent interview. Narration capture and audio transcription are deferred because the interview provides explicit, editable context without expanding the permission and processing surface before the deadline.
 
 Deliverables:
 
-- Frame and audio extraction pipeline.
+- Bounded local frame extraction pipeline.
 - Structured recording summary.
 - Follow-up questions grounded in ambiguity from the demonstration.
 - Explicit separation of inferred and confirmed intent.

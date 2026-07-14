@@ -6,7 +6,7 @@ TaskTape is a desktop automation builder that learns from a recorded demonstrati
 
 ## Current status
 
-Milestone 1 is complete. Milestone 2 has verified local key-frame extraction, a schema-bound analysis boundary, and the follow-up intent interview against a deterministic provider. The live OpenAI smoke test is currently blocked by the configured project's API quota, and audio extraction is not implemented yet.
+Milestones 1 and 2 are complete. TaskTape now has verified local key-frame extraction, schema-bound GPT-5.6 analysis, and a follow-up intent interview in both deterministic and live-model tests. Audio capture is deliberately deferred; the current product gathers missing context through focused follow-up questions.
 
 The initial release is macOS-first and is being built for OpenAI Build Week. The product vision is broader than the hackathon implementation, but the demo will prove one complete, reliable workflow rather than simulate universal desktop control.
 
