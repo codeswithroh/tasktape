@@ -1,6 +1,55 @@
 import { join } from 'node:path'
 
-import { app, BrowserWindow, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  desktopCapturer,
+  ipcMain,
+  session,
+  shell,
+  systemPreferences
+} from 'electron'
+
+import type { SaveRecordingInput } from '../shared/contracts.js'
+import { recordingIdSchema } from '../shared/recording-schema.js'
+import { removeRecording, saveRecording } from './recordings.js'
+
+if (process.env.TASKTAPE_USER_DATA) {
+  app.setPath('userData', process.env.TASKTAPE_USER_DATA)
+}
+
+function recordingsRoot(): string {
+  return join(app.getPath('userData'), 'recordings')
+}
+
+function registerRecorderIpc(): void {
+  ipcMain.handle('recorder:get-permission-status', () => {
+    if (process.platform !== 'darwin') return 'unknown'
+    return systemPreferences.getMediaAccessStatus('screen')
+  })
+
+  ipcMain.handle('recorder:save', (_event, input: SaveRecordingInput) => {
+    return saveRecording(recordingsRoot(), input)
+  })
+
+  ipcMain.handle('recorder:remove', (_event, id: string) => {
+    return removeRecording(recordingsRoot(), recordingIdSchema.parse(id))
+  })
+}
+
+function registerDisplayCapture(): void {
+  session.defaultSession.setDisplayMediaRequestHandler(
+    async (_request, callback) => {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen', 'window'],
+        thumbnailSize: { width: 0, height: 0 },
+        fetchWindowIcons: false
+      })
+      callback({ video: sources[0] })
+    },
+    { useSystemPicker: true }
+  )
+}
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -34,6 +83,8 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  registerRecorderIpc()
+  registerDisplayCapture()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

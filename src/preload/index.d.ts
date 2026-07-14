@@ -1,8 +1,8 @@
-import type { AppInfo } from '../shared/contracts'
+import type { TaskTapeBridge } from '../shared/contracts'
 
 declare global {
   interface Window {
-    tasktape: { appInfo: AppInfo }
+    tasktape: TaskTapeBridge
   }
 }
 
