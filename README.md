@@ -6,7 +6,7 @@ TaskTape is a desktop automation builder that learns from a recorded demonstrati
 
 ## Current status
 
-Milestone 1 is complete. The desktop shell, native macOS screen selection, recording, local persistence, playback, cancellation, and discard flow are verified. Milestone 2 is now building frame analysis and the follow-up intent interview.
+Milestone 1 is complete. Milestone 2 has verified local key-frame extraction, a schema-bound analysis boundary, and the follow-up intent interview against a deterministic provider. The live OpenAI smoke test is currently blocked by the configured project's API quota, and audio extraction is not implemented yet.
 
 The initial release is macOS-first and is being built for OpenAI Build Week. The product vision is broader than the hackathon implementation, but the demo will prove one complete, reliable workflow rather than simulate universal desktop control.
 
@@ -35,6 +35,12 @@ cd /Users/rohitpurkait/Documents/codex_build_week
 pnpm install
 pnpm check
 pnpm dev
+```
+
+The separately invoked live model test regenerates its screenshot fixture before calling OpenAI:
+
+```bash
+pnpm test:live
 ```
 
 The ignored `.env.local` file contains local credentials. Start from `.env.example` on a new machine and never commit secret values.

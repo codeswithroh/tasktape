@@ -63,6 +63,21 @@ test('records, saves, previews, and discards a workflow', async () => {
     )
     expect(await extractedFrame.getAttribute('src')).toMatch(/^data:image\/jpeg;base64,/)
     expect(await readdir(join(userData, 'recordings'))).toHaveLength(2)
+
+    await page.getByRole('button', { name: 'Explain this workflow' }).click()
+    await expect(page.getByRole('heading', { name: 'Clarify the intent' })).toBeVisible()
+    await expect(page.getByText('Inferred goal', { exact: true })).toBeVisible()
+    await page.getByLabel('1. Which folder should this workflow inspect?').fill('/tmp/inbox')
+    await page
+      .getByLabel(
+        '2. What should happen when a destination already contains a file with the same name?'
+      )
+      .selectOption('Skip and report it')
+    await page.getByRole('button', { name: 'Confirm intent' }).click()
+    await expect(page.getByRole('button', { name: 'Intent confirmed' })).toBeDisabled()
+    await page.locator('.recorder').screenshot({ path: 'output/playwright/intent-interview.png' })
+    await page.getByRole('button', { name: 'Back to recording' }).click()
+
     await page.addStyleTag({
       content: '*, *::before, *::after { animation: none !important; transition: none !important; }'
     })

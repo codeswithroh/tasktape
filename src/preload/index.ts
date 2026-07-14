@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+import type { AnalyzeRecordingInput } from '../shared/analysis-contracts.js'
 import type { AppInfo, SaveRecordingInput, TaskTapeBridge } from '../shared/contracts.js'
 import { APP_NAME } from '../shared/contracts.js'
 
@@ -16,6 +17,9 @@ const bridge: TaskTapeBridge = {
     getPermissionStatus: () => ipcRenderer.invoke('recorder:get-permission-status'),
     save: (input: SaveRecordingInput) => ipcRenderer.invoke('recorder:save', input),
     remove: (id: string) => ipcRenderer.invoke('recorder:remove', id)
+  },
+  analysis: {
+    analyze: (input: AnalyzeRecordingInput) => ipcRenderer.invoke('analysis:analyze', input)
   }
 }
 

@@ -4,3 +4,9 @@ export interface ExtractedFrame {
   width: number
   height: number
 }
+
+export interface AnalyzeRecordingInput {
+  recordingId: string
+  durationMs: number
+  frames: ExtractedFrame[]
+}

@@ -12,7 +12,10 @@ import {
   Workflow,
   X
 } from 'lucide-react'
+import { useState } from 'react'
 
+import { IntentInterview } from './analysis/IntentInterview'
+import { useAnalysis } from './analysis/useAnalysis'
 import { useRecorder } from './recorder/useRecorder'
 
 function formatDuration(milliseconds: number): string {
@@ -29,10 +32,17 @@ function formatBytes(bytes: number): string {
 
 export function App(): React.JSX.Element {
   const recorder = useRecorder()
+  const analysis = useAnalysis()
+  const [, setConfirmedAnswers] = useState<Record<string, string> | null>(null)
   const isBusy =
     recorder.state === 'requesting' ||
     recorder.state === 'saving' ||
     recorder.state === 'extracting'
+
+  const resetAnalysis = (): void => {
+    analysis.reset()
+    setConfirmedAnswers(null)
+  }
 
   return (
     <div className="app-shell">
@@ -131,7 +141,13 @@ export function App(): React.JSX.Element {
           </div>
 
           <div className="recorder-copy">
-            {recorder.state === 'ready' && recorder.metadata ? (
+            {analysis.state === 'ready' && analysis.result ? (
+              <IntentInterview
+                analysis={analysis.result}
+                onBack={analysis.reset}
+                onConfirm={setConfirmedAnswers}
+              />
+            ) : recorder.state === 'ready' && recorder.metadata ? (
               <>
                 <p className="step-label success-label">
                   <Check size={13} />
@@ -172,14 +188,27 @@ export function App(): React.JSX.Element {
                 {recorder.frameError ? (
                   <p className="honesty-note">Frame preparation failed: {recorder.frameError}</p>
                 ) : null}
-                <button className="record-button" type="button" disabled>
-                  <Sparkles size={17} />
-                  Continue to intent interview
+                {analysis.error ? <p className="analysis-error">{analysis.error}</p> : null}
+                <button
+                  className="record-button"
+                  type="button"
+                  disabled={recorder.frames.length === 0 || analysis.state === 'analyzing'}
+                  onClick={() => void analysis.analyze(recorder.metadata!, recorder.frames)}
+                >
+                  {analysis.state === 'analyzing' ? (
+                    <LoaderCircle className="spinner" size={17} />
+                  ) : (
+                    <Sparkles size={17} />
+                  )}
+                  {analysis.state === 'analyzing' ? 'Analyzing recording' : 'Explain this workflow'}
                 </button>
                 <div className="secondary-actions">
                   <button
                     type="button"
-                    onClick={() => void recorder.discard().then(recorder.start)}
+                    onClick={() => {
+                      resetAnalysis()
+                      void recorder.discard().then(recorder.start)
+                    }}
                   >
                     <RotateCcw size={16} />
                     Record again
@@ -187,7 +216,10 @@ export function App(): React.JSX.Element {
                   <button
                     className="danger-action"
                     type="button"
-                    onClick={() => void recorder.discard()}
+                    onClick={() => {
+                      resetAnalysis()
+                      void recorder.discard()
+                    }}
                   >
                     <Trash2 size={16} />
                     Discard

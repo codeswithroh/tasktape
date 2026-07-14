@@ -31,6 +31,8 @@ Exit gate:
 
 ## Milestone 2: Intent interview and analysis - In progress
 
+Current progress: local bounded frame extraction, strict analysis schemas, the isolated main-process OpenAI client, and the editable intent interview are implemented and deterministically verified. The live model exit gate is blocked by API quota, and audio extraction remains planned.
+
 Deliverables:
 
 - Frame and audio extraction pipeline.

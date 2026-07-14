@@ -42,4 +42,9 @@ export interface TaskTapeBridge {
     save: (input: SaveRecordingInput) => Promise<RecordingMetadata>
     remove: (id: string) => Promise<void>
   }
+  analysis: {
+    analyze: (input: AnalyzeRecordingInput) => Promise<WorkflowAnalysis>
+  }
 }
+import type { AnalyzeRecordingInput } from './analysis-contracts.js'
+import type { WorkflowAnalysis } from './analysis-schema.js'

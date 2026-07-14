@@ -1,5 +1,6 @@
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
+import { config } from 'dotenv'
 import {
   app,
   BrowserWindow,
@@ -12,8 +13,18 @@ import {
 } from 'electron'
 
 import type { SaveRecordingInput } from '../shared/contracts.js'
+import type { AnalyzeRecordingInput } from '../shared/analysis-contracts.js'
 import { recordingIdSchema } from '../shared/recording-schema.js'
+import { analyzeRecording } from './analysis.js'
+import { TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
 import { removeRecording, saveRecording } from './recordings.js'
+
+if (!app.isPackaged) {
+  config({
+    path: [resolve(process.cwd(), '.env.local'), resolve(process.cwd(), '.env')],
+    quiet: true
+  })
+}
 
 if (process.env.TASKTAPE_USER_DATA) {
   app.setPath('userData', process.env.TASKTAPE_USER_DATA)
@@ -47,6 +58,16 @@ function registerRecorderIpc(): void {
   ipcMain.handle('recorder:remove', (event, id: string) => {
     assertTrustedSender(event)
     return removeRecording(recordingsRoot(), recordingIdSchema.parse(id))
+  })
+}
+
+function registerAnalysisIpc(): void {
+  ipcMain.handle('analysis:analyze', (event, input: AnalyzeRecordingInput) => {
+    assertTrustedSender(event)
+    if (process.env.TASKTAPE_E2E === '1') {
+      return analyzeRecording(input, async () => TEST_WORKFLOW_ANALYSIS)
+    }
+    return analyzeRecording(input)
   })
 }
 
@@ -97,6 +118,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerRecorderIpc()
+  registerAnalysisIpc()
   registerDisplayCapture()
   createWindow()
   app.on('activate', () => {

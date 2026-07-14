@@ -17,7 +17,7 @@ Electron is used because its desktop capture and process isolation APIs let the 
 
 ## Analysis pipeline
 
-The recorder will save a local video. A local `ffmpeg` process will extract a bounded set of representative frames and, when present, an audio track. TaskTape will send only those selected artifacts and the user's answers to the OpenAI Responses API.
+The recorder saves a local video, then the sandboxed renderer uses native browser media decoding and a canvas to extract at most eight evenly spaced, downscaled JPEG frames. This avoids adding a GPL-licensed static `ffmpeg` distribution to the desktop package. TaskTape sends only those selected frames to the OpenAI Responses API. Audio capture and transcription are not implemented in Milestone 2's current scope.
 
 The default analysis model is [`gpt-5.6`](https://developers.openai.com/api/docs/models/gpt-5.6-sol), which supports image input and structured outputs through the Responses API. Direct video input is not assumed; the frame extraction boundary is intentional and testable.
 
@@ -43,7 +43,7 @@ Milestone 1 begins with filesystem-backed local metadata. SQLite will be introdu
 ## Testing strategy
 
 - Vitest for schema and domain behavior.
-- Integration tests for local persistence, ffmpeg boundaries, and capability adapters.
+- Integration tests for local persistence, media-frame boundaries, and capability adapters.
 - Playwright's Electron support for packaged user journeys.
 - Manual macOS verification for screen-recording permissions and native capture behavior.
 - Live OpenAI tests labeled separately from deterministic mocked tests.
