@@ -76,6 +76,7 @@ export const workflowRunSchema = z.object({
   startedAt: z.string().datetime(),
   completedAt: z.string().datetime(),
   status: z.enum(['completed', 'partial', 'failed']),
+  trigger: z.enum(['manual', 'schedule']).default('manual'),
   results: z.array(
     z.object({
       actionId: z.string().uuid(),
@@ -87,7 +88,31 @@ export const workflowRunSchema = z.object({
   )
 })
 
+export const saveScheduleInputSchema = z.object({
+  workflowId: workflowIdSchema,
+  frequency: z.enum(['daily', 'weekly']),
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  weekday: z.number().int().min(0).max(6).nullable()
+})
+
+export const workflowScheduleSchema = saveScheduleInputSchema.extend({
+  version: z.literal(1),
+  enabled: z.boolean(),
+  nextRunAt: z.string().datetime(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime()
+})
+
+export const workflowHistoryEntrySchema = z.object({
+  workflowName: z.string().min(1).max(80),
+  workflowGoal: z.string().min(1).max(240),
+  run: workflowRunSchema
+})
+
 export type SaveWorkflowInput = z.infer<typeof saveWorkflowInputSchema>
 export type SavedWorkflow = z.infer<typeof savedWorkflowSchema>
 export type WorkflowPlan = z.infer<typeof workflowPlanSchema>
 export type WorkflowRun = z.infer<typeof workflowRunSchema>
+export type SaveScheduleInput = z.infer<typeof saveScheduleInputSchema>
+export type WorkflowSchedule = z.infer<typeof workflowScheduleSchema>
+export type WorkflowHistoryEntry = z.infer<typeof workflowHistoryEntrySchema>

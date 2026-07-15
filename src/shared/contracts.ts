@@ -70,13 +70,18 @@ export interface TaskTapeBridge {
     save: (input: SaveWorkflowInput) => Promise<SavedWorkflow>
     plan: (workflowId: string) => Promise<WorkflowPlan>
     execute: (input: { workflowId: string; planId: string }) => Promise<WorkflowRun>
+    saveSchedule: (input: SaveScheduleInput) => Promise<WorkflowSchedule>
+    history: () => Promise<WorkflowHistoryEntry[]>
   }
 }
 import type { AnalyzeRecordingInput } from './analysis-contracts.js'
 import type { WorkflowAnalysis } from './analysis-schema.js'
 import type {
+  SaveScheduleInput,
   SavedWorkflow,
   SaveWorkflowInput,
+  WorkflowHistoryEntry,
   WorkflowPlan,
-  WorkflowRun
+  WorkflowRun,
+  WorkflowSchedule
 } from './workflow-schema.js'

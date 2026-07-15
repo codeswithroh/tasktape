@@ -32,7 +32,9 @@ const bridge: TaskTapeBridge = {
     chooseDirectory: () => ipcRenderer.invoke('workflow:choose-directory'),
     save: (input) => ipcRenderer.invoke('workflow:save', input),
     plan: (workflowId) => ipcRenderer.invoke('workflow:plan', workflowId),
-    execute: (input) => ipcRenderer.invoke('workflow:execute', input)
+    execute: (input) => ipcRenderer.invoke('workflow:execute', input),
+    saveSchedule: (input) => ipcRenderer.invoke('workflow:save-schedule', input),
+    history: () => ipcRenderer.invoke('workflow:history')
   }
 }
 

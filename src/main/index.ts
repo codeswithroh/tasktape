@@ -20,7 +20,7 @@ import type { CaptureSource, SaveRecordingInput } from '../shared/contracts.js'
 import type { AnalyzeRecordingInput } from '../shared/analysis-contracts.js'
 import { captureSourceIdSchema } from '../shared/capture-source-schema.js'
 import { recordingIdSchema } from '../shared/recording-schema.js'
-import type { SaveWorkflowInput } from '../shared/workflow-schema.js'
+import type { SaveScheduleInput, SaveWorkflowInput } from '../shared/workflow-schema.js'
 import { analyzeRecording, requestOpenAIAnalysis } from './analysis.js'
 import { TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
 import {
@@ -31,7 +31,14 @@ import {
   saveApiKey
 } from './api-credentials.js'
 import { removeRecording, saveRecording } from './recordings.js'
-import { createWorkflowPlan, executeWorkflowPlan, saveWorkflow } from './workflows.js'
+import {
+  createWorkflowPlan,
+  executeWorkflowPlan,
+  listWorkflowHistory,
+  runDueSchedules,
+  saveWorkflow,
+  saveWorkflowSchedule
+} from './workflows.js'
 
 if (!app.isPackaged) {
   config({
@@ -219,6 +226,35 @@ function registerWorkflowIpc(): void {
     assertTrustedSender(event)
     return executeWorkflowPlan(workflowsRoot(), input)
   })
+  ipcMain.handle('workflow:save-schedule', (event, input: SaveScheduleInput) => {
+    assertTrustedSender(event)
+    return saveWorkflowSchedule(workflowsRoot(), input)
+  })
+  ipcMain.handle('workflow:history', (event) => {
+    assertTrustedSender(event)
+    return listWorkflowHistory(workflowsRoot())
+  })
+}
+
+let schedulerTimer: NodeJS.Timeout | null = null
+let schedulerRunning = false
+
+function startWorkflowScheduler(): void {
+  const tick = (): void => {
+    if (schedulerRunning) return
+    schedulerRunning = true
+    void runDueSchedules(workflowsRoot())
+      .catch((error: unknown) => {
+        process.stderr.write(
+          `TaskTape scheduler error: ${error instanceof Error ? error.message : 'Unknown error'}\n`
+        )
+      })
+      .finally(() => {
+        schedulerRunning = false
+      })
+  }
+  tick()
+  schedulerTimer = setInterval(tick, 30_000)
 }
 
 function registerDisplayCapture(): void {
@@ -277,10 +313,15 @@ app.whenReady().then(() => {
   registerSettingsIpc()
   registerWorkflowIpc()
   registerDisplayCapture()
+  startWorkflowScheduler()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('before-quit', () => {
+  if (schedulerTimer) clearInterval(schedulerTimer)
 })
 
 app.on('window-all-closed', () => {

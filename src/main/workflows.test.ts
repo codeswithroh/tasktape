@@ -6,7 +6,15 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { rm } from 'node:fs/promises'
 
 import type { SaveWorkflowInput } from '../shared/workflow-schema.js'
-import { createWorkflowPlan, executeWorkflowPlan, saveWorkflow } from './workflows.js'
+import {
+  createWorkflowPlan,
+  executeWorkflowPlan,
+  listWorkflowHistory,
+  nextScheduleTime,
+  runDueSchedules,
+  saveWorkflow,
+  saveWorkflowSchedule
+} from './workflows.js'
 
 const roots: string[] = []
 
@@ -143,5 +151,51 @@ describe('workflow persistence and execution', () => {
       })
     ).rejects.toThrow('That media folder is no longer available. Choose it again.')
     await expect(readdir(setup.root)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('calculates the next daily and weekly times in local time', () => {
+    const mondayMorning = new Date(2026, 0, 5, 10, 30)
+
+    expect(
+      nextScheduleTime(
+        { workflowId: crypto.randomUUID(), frequency: 'daily', time: '09:15', weekday: null },
+        mondayMorning
+      )
+    ).toEqual(new Date(2026, 0, 6, 9, 15))
+    expect(
+      nextScheduleTime(
+        { workflowId: crypto.randomUUID(), frequency: 'weekly', time: '11:00', weekday: 3 },
+        mondayMorning
+      )
+    ).toEqual(new Date(2026, 0, 7, 11, 0))
+  })
+
+  it('persists a schedule, runs it when due, and adds it to history', async () => {
+    const setup = await fixture('move')
+    const workflow = await saveWorkflow(setup.root, setup.input)
+    const now = new Date(2026, 0, 5, 10, 30)
+    const schedule = await saveWorkflowSchedule(
+      setup.root,
+      { workflowId: workflow.id, frequency: 'daily', time: '10:31', weekday: null },
+      now
+    )
+
+    expect(schedule.enabled).toBe(true)
+    expect(schedule.nextRunAt).toBe(new Date(2026, 0, 5, 10, 31).toISOString())
+
+    const earlyRuns = await runDueSchedules(setup.root, new Date(2026, 0, 5, 10, 30, 59))
+    expect(earlyRuns).toEqual([])
+
+    const runs = await runDueSchedules(setup.root, new Date(schedule.nextRunAt))
+    expect(runs).toHaveLength(1)
+    expect(runs[0]).toMatchObject({ status: 'completed', trigger: 'schedule' })
+    expect(await readFile(join(setup.source, 'Videos', 'clip.mp4'), 'utf8')).toBe('video')
+
+    const history = await listWorkflowHistory(setup.root)
+    expect(history).toHaveLength(1)
+    expect(history[0]).toMatchObject({
+      workflowName: 'Organize creator media',
+      run: { trigger: 'schedule', status: 'completed' }
+    })
   })
 })
