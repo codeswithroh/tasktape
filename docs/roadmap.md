@@ -87,17 +87,27 @@ Exit gate:
 
 - The Electron journey moves disposable video and image fixtures into confirmed folders, leaves unsupported files unchanged, and verifies the persisted activity log.
 
-## Milestone 4B: Scheduling and history - July 18
+## Milestone 4B: Scheduling and history - In progress July 15
 
 Deliverables:
 
 - Scheduler for saved workflows.
-- Searchable run history and actionable failures.
+- Run history with manual and scheduled results.
 - Idempotency and rollback strategy for the reference workflow.
 
 Exit gate:
 
 - Scheduled runs transform disposable fixtures correctly, and reruns do not corrupt prior results.
+
+Verified so far:
+
+- Daily and weekly schedules persist locally and resume checking when TaskTape opens.
+- A packaged Electron test forces a schedule due, moves a new video fixture, and shows separate manual and scheduled history entries.
+- Fresh plans, exclusive destination creation, and collision skipping protect reruns from overwriting prior results.
+
+Remaining before this milestone closes:
+
+- Add schedule pause or removal controls and define a rollback strategy. History search remains a post-hackathon enhancement.
 
 ## Milestone 5: Product polish and submission - July 19-20
 

@@ -2,11 +2,11 @@
 
 **Show your work once. Replay it safely.**
 
-TaskTape is a desktop automation builder that learns from a recorded demonstration and a short intent interview. It turns both into an editable workflow recipe that can be reviewed, dry-run, executed, and scheduled.
+TaskTape is a desktop automation builder that learns from a recorded demonstration and a short intent interview. It turns both into an editable workflow recipe that can be reviewed, executed, and scheduled.
 
 ## Current status
 
-TaskTape now completes one real workflow end to end. A user can record a media-organizing routine, answer contextual questions, edit the inferred goal, save a versioned local recipe, review exact file changes, and run actual moves or copies with a persisted activity log.
+TaskTape now completes one real workflow end to end. A user can record a media-organizing routine, answer contextual questions, edit the inferred goal, save a versioned local recipe, review exact file changes, and run actual moves or copies with a persisted activity log. Completed workflows can run every day or week, and manual and scheduled results appear in Run history.
 
 Recording starts with TaskTape's visual source gallery, which shows full displays and every currently available application window as named thumbnail tiles. The selected source is revalidated in Electron's main process immediately before capture.
 
@@ -14,14 +14,14 @@ Users can add or replace their own OpenAI API key from Settings. App-managed key
 
 The initial release is macOS-first and is being built for OpenAI Build Week. The product vision is broader than the hackathon implementation, but the demo will prove one complete, reliable workflow rather than simulate universal desktop control.
 
-The executable boundary is intentionally specific: TaskTape scans top-level files in one selected folder, recognizes common video and image formats, and organizes them into confirmed destination folders. Unsupported files and name collisions remain unchanged. Scheduling, searchable history, and arbitrary application control are not yet implemented.
+The executable boundary is intentionally specific: TaskTape scans top-level files in one selected folder, recognizes common video and image formats, and organizes them into confirmed destination folders. Unsupported files and name collisions remain unchanged. Scheduled runs require TaskTape to be open. Background launch, history search, rollback, and arbitrary application control are not yet implemented.
 
 ## Product loop
 
 1. Record a real desktop workflow.
 2. Answer focused questions about intent, variables, exceptions, and desired outcome.
 3. Review the generated workflow recipe and its permissions.
-4. Dry-run the workflow against a safe preview.
+4. Review the exact files TaskTape will change.
 5. Run immediately or schedule it.
 6. Inspect the result and activity log.
 

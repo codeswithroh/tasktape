@@ -1,11 +1,15 @@
 import {
   AlertCircle,
   ArrowLeft,
+  CalendarClock,
   Check,
   FolderOpen,
+  History,
   LoaderCircle,
   Pencil,
   Play,
+  Plus,
+  RotateCcw,
   Save
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -15,7 +19,8 @@ import type {
   SavedWorkflow,
   SaveWorkflowInput,
   WorkflowPlan,
-  WorkflowRun
+  WorkflowRun,
+  WorkflowSchedule
 } from '../../../shared/workflow-schema'
 
 interface WorkflowDraftReviewProps {
@@ -23,6 +28,15 @@ interface WorkflowDraftReviewProps {
   answers: Record<string, string>
   onBack: () => void
   onEdit: () => void
+  onCreateNew: () => void
+  onViewHistory: () => void
+}
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function defaultScheduleTime(): string {
+  const next = new Date(Date.now() + 60 * 60 * 1_000)
+  return `${String(next.getHours()).padStart(2, '0')}:00`
 }
 
 function cleanText(value: string): string {
@@ -70,7 +84,9 @@ export function WorkflowDraftReview({
   analysis,
   answers,
   onBack,
-  onEdit
+  onEdit,
+  onCreateNew,
+  onViewHistory
 }: WorkflowDraftReviewProps): React.JSX.Element {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const [recipe, setRecipe] = useState<SaveWorkflowInput>({
@@ -86,8 +102,13 @@ export function WorkflowDraftReview({
   const [workflow, setWorkflow] = useState<SavedWorkflow | null>(null)
   const [plan, setPlan] = useState<WorkflowPlan | null>(null)
   const [run, setRun] = useState<WorkflowRun | null>(null)
+  const [schedule, setSchedule] = useState<WorkflowSchedule | null>(null)
+  const [showSchedule, setShowSchedule] = useState(false)
+  const [frequency, setFrequency] = useState<'daily' | 'weekly'>('daily')
+  const [scheduleTime, setScheduleTime] = useState(defaultScheduleTime)
+  const [weekday, setWeekday] = useState(new Date().getDay())
   const [approved, setApproved] = useState(false)
-  const [busy, setBusy] = useState<'saving' | 'running' | null>(null)
+  const [busy, setBusy] = useState<'saving' | 'running' | 'scheduling' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -152,14 +173,46 @@ export function WorkflowDraftReview({
     }
   }
 
+  const runAgain = async (): Promise<void> => {
+    if (!workflow) return
+    setBusy('running')
+    setError(null)
+    try {
+      const pendingPlan = await window.tasktape.workflow.plan(workflow.id)
+      setRun(null)
+      setPlan(pendingPlan)
+      setApproved(false)
+    } catch (reason) {
+      setError(friendlyError(reason, 'Could not check for new files. Please try again.'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const saveSchedule = async (): Promise<void> => {
+    if (!workflow) return
+    setBusy('scheduling')
+    setError(null)
+    try {
+      setSchedule(
+        await window.tasktape.workflow.saveSchedule({
+          workflowId: workflow.id,
+          frequency,
+          time: scheduleTime,
+          weekday: frequency === 'weekly' ? weekday : null
+        })
+      )
+    } catch (reason) {
+      setError(friendlyError(reason, 'Could not save this schedule. Check the time and try again.'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   if (run) {
     const completed = run.results.filter((result) => result.status === 'completed').length
     return (
       <div className="workflow-draft run-result">
-        <button className="back-button" type="button" onClick={onBack}>
-          <ArrowLeft size={15} />
-          Back to recording
-        </button>
         <p className={`step-label ${run.status === 'completed' ? 'success-label' : 'error-label'}`}>
           {run.status === 'completed' ? <Check size={13} /> : <AlertCircle size={13} />}
           Run {run.status}
@@ -167,7 +220,7 @@ export function WorkflowDraftReview({
         <h2 id="recorder-title" ref={headingRef} tabIndex={-1}>
           {completed} {completed === 1 ? 'file' : 'files'} updated
         </h2>
-        <p className="intent-intro">This result was written to the local activity log.</p>
+        <p className="intent-intro">The run is complete and saved in your history.</p>
         <ul className="run-results" aria-label="Workflow activity">
           {run.results.map((result) => (
             <li key={result.actionId} className={result.status}>
@@ -179,6 +232,125 @@ export function WorkflowDraftReview({
             </li>
           ))}
         </ul>
+
+        <section className="completion-actions" aria-labelledby="next-step-title">
+          <div>
+            <h3 id="next-step-title">What would you like to do next?</h3>
+            <p>Schedule this workflow or start another one.</p>
+          </div>
+          <div className="completion-action-grid">
+            <button
+              className="primary-action"
+              type="button"
+              onClick={() => setShowSchedule((current) => !current)}
+            >
+              <CalendarClock size={16} />
+              Schedule workflow
+            </button>
+            <button type="button" onClick={() => void runAgain()} disabled={busy === 'running'}>
+              {busy === 'running' ? (
+                <LoaderCircle className="spinner" size={16} />
+              ) : (
+                <RotateCcw size={16} />
+              )}
+              Run again
+            </button>
+            <button type="button" onClick={onViewHistory}>
+              <History size={16} />
+              View run history
+            </button>
+            <button type="button" onClick={onCreateNew}>
+              <Plus size={16} />
+              New workflow
+            </button>
+          </div>
+        </section>
+
+        {showSchedule ? (
+          <form
+            className="schedule-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void saveSchedule()
+            }}
+          >
+            <div className="schedule-heading">
+              <CalendarClock size={18} />
+              <div>
+                <h3>Schedule workflow</h3>
+                <p>TaskTape must be open when the run is due.</p>
+              </div>
+            </div>
+            <fieldset className="schedule-frequency">
+              <legend>Repeat</legend>
+              <div>
+                {(['daily', 'weekly'] as const).map((option) => (
+                  <label key={option}>
+                    <input
+                      type="radio"
+                      name="frequency"
+                      value={option}
+                      checked={frequency === option}
+                      onChange={() => setFrequency(option)}
+                    />
+                    <span>{option === 'daily' ? 'Every day' : 'Every week'}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <div className={`schedule-fields ${frequency === 'daily' ? 'daily' : ''}`}>
+              {frequency === 'weekly' ? (
+                <div>
+                  <label htmlFor="schedule-weekday">Day</label>
+                  <select
+                    id="schedule-weekday"
+                    value={weekday}
+                    onChange={(event) => setWeekday(Number(event.target.value))}
+                  >
+                    {WEEKDAYS.map((day, index) => (
+                      <option key={day} value={index}>
+                        {day}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              <div>
+                <label htmlFor="schedule-time">Time</label>
+                <input
+                  id="schedule-time"
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(event) => setScheduleTime(event.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            {error ? (
+              <p className="workflow-error" role="alert">
+                {error}
+              </p>
+            ) : null}
+            {schedule ? (
+              <p className="schedule-saved" role="status">
+                <Check size={14} />
+                Next run:{' '}
+                {new Intl.DateTimeFormat(undefined, {
+                  dateStyle: 'medium',
+                  timeStyle: 'short'
+                }).format(new Date(schedule.nextRunAt))}
+              </p>
+            ) : null}
+            <button className="record-button" type="submit" disabled={busy === 'scheduling'}>
+              {busy === 'scheduling' ? (
+                <LoaderCircle className="spinner" size={16} />
+              ) : (
+                <CalendarClock size={16} />
+              )}
+              {schedule ? 'Update schedule' : 'Save schedule'}
+            </button>
+          </form>
+        ) : null}
       </div>
     )
   }

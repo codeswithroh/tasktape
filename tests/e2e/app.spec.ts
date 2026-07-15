@@ -71,7 +71,9 @@ test('launches the isolated TaskTape shell', async () => {
 })
 
 test('records, saves, and runs a real media workflow', async () => {
-  const { application, userData } = await launchTestApp()
+  const { application, userData } = await launchTestApp({
+    TASKTAPE_E2E_SCHEDULER_INTERVAL_MS: '100'
+  })
   const mediaInbox = join(userData, 'media-inbox')
   await mkdir(mediaInbox)
   await writeFile(join(mediaInbox, 'launch.mp4'), 'video fixture')
@@ -80,6 +82,11 @@ test('records, saves, and runs a real media workflow', async () => {
 
   try {
     const page = await application.firstWindow()
+    const rendererErrors: string[] = []
+    page.on('console', (message) => {
+      if (message.type() === 'error') rendererErrors.push(message.text())
+    })
+    page.on('pageerror', (error) => rendererErrors.push(error.message))
     await page.getByRole('button', { name: 'Start recording' }).click()
     await expect(page.getByRole('heading', { name: 'Choose what to record' })).toBeVisible()
     await expect(
@@ -146,10 +153,16 @@ test('records, saves, and runs a real media workflow', async () => {
     await page
       .locator('.recorder-copy')
       .screenshot({ path: 'output/playwright/intent-interview.png' })
+    await page
+      .getByTestId('recording-preview')
+      .evaluate((video: HTMLVideoElement) => (video.style.visibility = ''))
+    await page.setViewportSize({ width: 1180, height: 760 })
     await page.getByRole('button', { name: 'Save and review' }).click()
 
     await expect(page.getByRole('heading', { name: 'Set up the workflow' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Set up the workflow' })).toBeFocused()
+    const playbackBox = await page.getByTestId('recording-preview').boundingBox()
+    expect(playbackBox?.width).toBeGreaterThan(300)
     await expect(page.getByText('Answers saved', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Save and review' })).toHaveCount(0)
 
@@ -186,7 +199,7 @@ test('records, saves, and runs a real media workflow', async () => {
 
     await expect(page.getByRole('heading', { name: '2 files updated' })).toBeVisible()
     await expect(page.getByText('Run completed', { exact: true })).toBeVisible()
-    await expect(page.getByText('This result was written to the local activity log.')).toBeVisible()
+    await expect(page.getByText('The run is complete and saved in your history.')).toBeVisible()
     expect(await readFile(join(mediaInbox, 'Raw Video', 'launch.mp4'), 'utf8')).toBe(
       'video fixture'
     )
@@ -205,22 +218,59 @@ test('records, saves, and runs a real media workflow', async () => {
     const runLog = JSON.parse(
       await readFile(join(userData, 'workflows', workflowIds[0], 'runs', runFiles[0]), 'utf8')
     )
-    expect(runLog).toMatchObject({ status: 'completed' })
+    expect(runLog).toMatchObject({ status: 'completed', trigger: 'manual' })
     await page.screenshot({ path: 'output/playwright/workflow-run-complete.png' })
 
-    await page
-      .getByTestId('recording-preview')
-      .evaluate((video: HTMLVideoElement) => (video.style.visibility = ''))
-    await page.getByRole('button', { name: 'Back to recording' }).click()
+    await page.getByRole('button', { name: 'Schedule workflow' }).click()
+    await expect(page.getByRole('heading', { name: 'Schedule workflow' })).toBeVisible()
+    await page.getByLabel('Every week').check()
+    await page.getByLabel('Day', { exact: true }).selectOption('3')
+    await page.getByLabel('Time', { exact: true }).fill('09:30')
+    await page.getByRole('button', { name: 'Save schedule' }).click()
+    await expect(page.getByText(/^Next run:/)).toBeVisible()
+    const schedulePath = join(userData, 'workflows', workflowIds[0], 'schedule.json')
+    const schedule = JSON.parse(await readFile(schedulePath, 'utf8'))
+    expect(schedule).toMatchObject({
+      enabled: true,
+      frequency: 'weekly',
+      weekday: 3,
+      time: '09:30'
+    })
+    await page.screenshot({ path: 'output/playwright/workflow-scheduled.png' })
+
+    await writeFile(join(mediaInbox, 'weekly.mp4'), 'scheduled video fixture')
+    await writeFile(
+      schedulePath,
+      `${JSON.stringify({ ...schedule, nextRunAt: new Date(Date.now() - 1_000).toISOString() }, null, 2)}\n`
+    )
+    await expect
+      .poll(() => readFile(join(mediaInbox, 'Raw Video', 'weekly.mp4'), 'utf8').catch(() => null))
+      .toBe('scheduled video fixture')
+
+    await page.getByRole('button', { name: 'View run history' }).click()
+    await expect(page.getByRole('heading', { name: 'Run history' })).toBeVisible()
+    await expect(page.getByText('Organize creator media', { exact: true })).toHaveCount(2)
+    await expect(page.getByText('Manual', { exact: true })).toBeVisible()
+    await expect(page.getByText('Scheduled', { exact: true })).toBeVisible()
+    await expect(page.getByText('2 updated', { exact: true })).toBeVisible()
+    await expect(page.getByText('1 updated', { exact: true })).toBeVisible()
+    await page.screenshot({ path: 'output/playwright/run-history.png' })
+
+    await page.getByRole('button', { name: 'Workflows' }).click()
+    await expect(page.getByRole('heading', { name: '2 files updated' })).toBeVisible()
+    const newWorkflowButton = page.getByRole('button', { name: 'New workflow' })
+    await page.locator('.workspace').evaluate((element) => element.scrollTo({ top: 0 }))
+    await newWorkflowButton.scrollIntoViewIfNeeded()
+    await expect(newWorkflowButton).toBeVisible()
+    await expect(newWorkflowButton).toBeEnabled()
+    await newWorkflowButton.click()
 
     await page.addStyleTag({
       content: '*, *::before, *::after { animation: none !important; transition: none !important; }'
     })
-    await page.locator('.recorder').screenshot({ path: 'output/playwright/recording-ready.png' })
-
-    await page.getByRole('button', { name: 'Discard' }).click()
     await expect(page.getByRole('button', { name: 'Start recording' })).toBeVisible()
     expect(await readdir(join(userData, 'recordings'))).toHaveLength(0)
+    expect(rendererErrors).toEqual([])
   } finally {
     await application.close()
     await rm(userData, { recursive: true, force: true })

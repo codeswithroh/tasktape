@@ -27,7 +27,7 @@ The default analysis model is [`gpt-5.6`](https://developers.openai.com/api/docs
 
 ## Workflow intermediate representation
 
-Model output never executes directly. It must parse into a versioned Zod schema containing the confirmed goal, inputs, ordered known capabilities, approvals, ambiguity annotations, and dry-run expectations. The executor accepts only schema-valid recipes and known capability types.
+Model output never executes directly. It must parse into a versioned Zod schema containing the confirmed goal, inputs, ordered known capabilities, approvals, ambiguity annotations, and change-review expectations. The executor accepts only schema-valid recipes and known capability types.
 
 ## Initial capability boundary
 
@@ -37,13 +37,19 @@ The first executable recipe scans regular files at the top level of one user-sel
 
 ## Persistence
 
-Recordings, versioned workflow recipes, approved plans, and activity logs use filesystem-backed local metadata. Workflow JSON files are written with mode `0600`. SQLite remains deferred until scheduling and searchable run history require transactional state.
+Recordings, versioned workflow recipes, schedules, approved plans, and activity logs use filesystem-backed local metadata. Workflow JSON files are written with mode `0600`. The history view reads immutable run logs across saved workflows. SQLite remains deferred until history search or larger run volumes require indexed, transactional state.
+
+## Scheduling
+
+Each workflow can persist one daily or weekly schedule in local time. The main process checks for due schedules every 30 seconds, creates a fresh plan from the current folder contents, executes known filesystem capabilities, advances the next run time, and writes a normal activity log marked as scheduled. An overdue schedule is checked when the app launches.
+
+The current scheduler runs only while TaskTape is open. Operating-system background launch and catch-up policy controls are intentionally deferred and are stated in the scheduling UI.
 
 ## Security
 
 - API credentials remain in the main process and are never exposed back to the renderer. Keys entered in Settings are encrypted through Electron `safeStorage`, persisted with mode `0600`, and take precedence over the development-only environment fallback.
 - Recordings and extracted frames are ignored by Git and local by default.
-- Destructive actions require explicit approval and an available rollback strategy.
+- Manual destructive actions require explicit review and approval. Scheduled runs are limited to the saved folder and collision-safe executor. Rollback is not yet implemented.
 - External links are opened through the operating system after the application denies new in-app windows.
 
 ## Testing strategy

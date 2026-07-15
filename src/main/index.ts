@@ -254,7 +254,9 @@ function startWorkflowScheduler(): void {
       })
   }
   tick()
-  schedulerTimer = setInterval(tick, 30_000)
+  const testInterval = Number(process.env.TASKTAPE_E2E_SCHEDULER_INTERVAL_MS)
+  const interval = process.env.TASKTAPE_E2E === '1' && testInterval >= 50 ? testInterval : 30_000
+  schedulerTimer = setInterval(tick, interval)
 }
 
 function registerDisplayCapture(): void {
