@@ -6,7 +6,6 @@ import {
   FolderOpen,
   History,
   LoaderCircle,
-  Pencil,
   Play,
   Plus,
   RotateCcw,
@@ -25,9 +24,7 @@ import type {
 
 interface WorkflowDraftReviewProps {
   analysis: WorkflowAnalysis
-  answers: Record<string, string>
   onBack: () => void
-  onEdit: () => void
   onCreateNew: () => void
   onViewHistory: () => void
 }
@@ -58,33 +55,9 @@ function fileName(path: string): string {
   return path.split('/').filter(Boolean).at(-1) ?? path
 }
 
-function initialOperation(answer: string | undefined): 'move' | 'copy' {
-  return answer?.toLowerCase().startsWith('move') ? 'move' : 'copy'
-}
-
-function initialUnmatchedPolicy(answer: string | undefined): 'leave' | 'move' {
-  return answer?.toLowerCase().includes('unsorted') ? 'move' : 'leave'
-}
-
-function inferredFolder(
-  structure: string | undefined,
-  category: 'video' | 'image',
-  fallback: string
-): string {
-  const matcher = category === 'video' ? /video/i : /image|photo|picture/i
-  return (
-    structure
-      ?.split('/')
-      .map((part) => part.trim())
-      .find((part) => matcher.test(part)) ?? fallback
-  )
-}
-
 export function WorkflowDraftReview({
   analysis,
-  answers,
   onBack,
-  onEdit,
   onCreateNew,
   onViewHistory
 }: WorkflowDraftReviewProps): React.JSX.Element {
@@ -93,22 +66,25 @@ export function WorkflowDraftReview({
     name: analysis.title,
     goal: analysis.goalHypothesis,
     sourceDirectory: '',
-    videoFolder: inferredFolder(answers.folder_structure, 'video', 'Videos'),
-    imageFolder: inferredFolder(answers.folder_structure, 'image', 'Images'),
-    operation: initialOperation(answers.file_action),
-    unmatchedPolicy: initialUnmatchedPolicy(answers.unmatched_media),
-    unmatchedFolder: 'Unsorted'
+    videoFolder: analysis.mediaRecipe?.videoFolder ?? 'Videos',
+    imageFolder: analysis.mediaRecipe?.imageFolder ?? 'Images',
+    operation: analysis.mediaRecipe?.operation ?? 'move',
+    unmatchedPolicy: analysis.mediaRecipe?.unmatchedPolicy ?? 'leave',
+    unmatchedFolder: analysis.mediaRecipe?.unmatchedFolder ?? 'Unsorted'
   })
   const [workflow, setWorkflow] = useState<SavedWorkflow | null>(null)
   const [plan, setPlan] = useState<WorkflowPlan | null>(null)
   const [run, setRun] = useState<WorkflowRun | null>(null)
   const [schedule, setSchedule] = useState<WorkflowSchedule | null>(null)
-  const [showSchedule, setShowSchedule] = useState(false)
-  const [frequency, setFrequency] = useState<'daily' | 'weekly'>('daily')
-  const [scheduleTime, setScheduleTime] = useState(defaultScheduleTime)
-  const [weekday, setWeekday] = useState(new Date().getDay())
+  const [runWhen, setRunWhen] = useState<'manual' | 'daily' | 'weekly'>(
+    analysis.scheduleProposal?.frequency ?? 'manual'
+  )
+  const [scheduleTime, setScheduleTime] = useState(
+    analysis.scheduleProposal?.time ?? defaultScheduleTime
+  )
+  const [weekday, setWeekday] = useState(analysis.scheduleProposal?.weekday ?? new Date().getDay())
   const [approved, setApproved] = useState(false)
-  const [busy, setBusy] = useState<'saving' | 'running' | 'scheduling' | null>(null)
+  const [busy, setBusy] = useState<'saving' | 'running' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -146,9 +122,22 @@ export function WorkflowDraftReview({
     }
     setBusy('saving')
     try {
-      const saved = await window.tasktape.workflow.save({ ...recipe, sourceDirectory })
-      const pendingPlan = await window.tasktape.workflow.plan(saved.id)
+      const saved = await window.tasktape.workflow.save(
+        { ...recipe, sourceDirectory },
+        workflow?.id
+      )
       setWorkflow(saved)
+      if (runWhen !== 'manual') {
+        setSchedule(
+          await window.tasktape.workflow.saveSchedule({
+            workflowId: saved.id,
+            frequency: runWhen,
+            time: scheduleTime,
+            weekday: runWhen === 'weekly' ? weekday : null
+          })
+        )
+      }
+      const pendingPlan = await window.tasktape.workflow.plan(saved.id)
       setPlan(pendingPlan)
       setApproved(false)
     } catch (reason) {
@@ -189,26 +178,6 @@ export function WorkflowDraftReview({
     }
   }
 
-  const saveSchedule = async (): Promise<void> => {
-    if (!workflow) return
-    setBusy('scheduling')
-    setError(null)
-    try {
-      setSchedule(
-        await window.tasktape.workflow.saveSchedule({
-          workflowId: workflow.id,
-          frequency,
-          time: scheduleTime,
-          weekday: frequency === 'weekly' ? weekday : null
-        })
-      )
-    } catch (reason) {
-      setError(friendlyError(reason, 'Could not save this schedule. Check the time and try again.'))
-    } finally {
-      setBusy(null)
-    }
-  }
-
   if (run) {
     const completed = run.results.filter((result) => result.status === 'completed').length
     return (
@@ -236,18 +205,15 @@ export function WorkflowDraftReview({
         <section className="completion-actions" aria-labelledby="next-step-title">
           <div>
             <h3 id="next-step-title">What would you like to do next?</h3>
-            <p>Schedule this workflow or start another one.</p>
+            <p>Check for new files, review past runs, or teach another workflow.</p>
           </div>
           <div className="completion-action-grid">
             <button
               className="primary-action"
               type="button"
-              onClick={() => setShowSchedule((current) => !current)}
+              onClick={() => void runAgain()}
+              disabled={busy === 'running'}
             >
-              <CalendarClock size={16} />
-              Schedule workflow
-            </button>
-            <button type="button" onClick={() => void runAgain()} disabled={busy === 'running'}>
               {busy === 'running' ? (
                 <LoaderCircle className="spinner" size={16} />
               ) : (
@@ -265,92 +231,6 @@ export function WorkflowDraftReview({
             </button>
           </div>
         </section>
-
-        {showSchedule ? (
-          <form
-            className="schedule-form"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void saveSchedule()
-            }}
-          >
-            <div className="schedule-heading">
-              <CalendarClock size={18} />
-              <div>
-                <h3>Schedule workflow</h3>
-                <p>TaskTape must be open when the run is due.</p>
-              </div>
-            </div>
-            <fieldset className="schedule-frequency">
-              <legend>Repeat</legend>
-              <div>
-                {(['daily', 'weekly'] as const).map((option) => (
-                  <label key={option}>
-                    <input
-                      type="radio"
-                      name="frequency"
-                      value={option}
-                      checked={frequency === option}
-                      onChange={() => setFrequency(option)}
-                    />
-                    <span>{option === 'daily' ? 'Every day' : 'Every week'}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <div className={`schedule-fields ${frequency === 'daily' ? 'daily' : ''}`}>
-              {frequency === 'weekly' ? (
-                <div>
-                  <label htmlFor="schedule-weekday">Day</label>
-                  <select
-                    id="schedule-weekday"
-                    value={weekday}
-                    onChange={(event) => setWeekday(Number(event.target.value))}
-                  >
-                    {WEEKDAYS.map((day, index) => (
-                      <option key={day} value={index}>
-                        {day}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-              <div>
-                <label htmlFor="schedule-time">Time</label>
-                <input
-                  id="schedule-time"
-                  type="time"
-                  value={scheduleTime}
-                  onChange={(event) => setScheduleTime(event.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            {error ? (
-              <p className="workflow-error" role="alert">
-                {error}
-              </p>
-            ) : null}
-            {schedule ? (
-              <p className="schedule-saved" role="status">
-                <Check size={14} />
-                Next run:{' '}
-                {new Intl.DateTimeFormat(undefined, {
-                  dateStyle: 'medium',
-                  timeStyle: 'short'
-                }).format(new Date(schedule.nextRunAt))}
-              </p>
-            ) : null}
-            <button className="record-button" type="submit" disabled={busy === 'scheduling'}>
-              {busy === 'scheduling' ? (
-                <LoaderCircle className="spinner" size={16} />
-              ) : (
-                <CalendarClock size={16} />
-              )}
-              {schedule ? 'Update schedule' : 'Save schedule'}
-            </button>
-          </form>
-        ) : null}
       </div>
     )
   }
@@ -386,6 +266,19 @@ export function WorkflowDraftReview({
           <span>Goal</span>
           <p>{cleanText(workflow.goal)}</p>
         </div>
+
+        {schedule ? (
+          <div className="saved-schedule">
+            <CalendarClock size={15} />
+            <span>
+              Next run:{' '}
+              {new Intl.DateTimeFormat(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+              }).format(new Date(schedule.nextRunAt))}
+            </span>
+          </div>
+        ) : null}
 
         {plan.actions.length > 0 ? (
           <ul className="plan-actions" aria-label="Files ready to change">
@@ -442,14 +335,38 @@ export function WorkflowDraftReview({
             {error}
           </p>
         ) : null}
-        <button
-          className="record-button run-workflow-button"
-          type="button"
-          disabled={!approved || plan.actions.length === 0 || busy === 'running'}
-          onClick={() => void execute()}
-        >
-          {busy === 'running' ? <LoaderCircle className="spinner" size={17} /> : <Play size={17} />}
-          {busy === 'running' ? 'Running workflow' : 'Run workflow'}
+        {plan.actions.length > 0 ? (
+          <button
+            className="record-button run-workflow-button"
+            type="button"
+            disabled={!approved || busy === 'running'}
+            onClick={() => void execute()}
+          >
+            {busy === 'running' ? (
+              <LoaderCircle className="spinner" size={17} />
+            ) : (
+              <Play size={17} />
+            )}
+            {busy === 'running' ? 'Running workflow' : 'Run workflow'}
+          </button>
+        ) : (
+          <button
+            className="record-button run-workflow-button"
+            type="button"
+            disabled={busy === 'running'}
+            onClick={() => void runAgain()}
+          >
+            {busy === 'running' ? (
+              <LoaderCircle className="spinner" size={17} />
+            ) : (
+              <RotateCcw size={17} />
+            )}
+            Check again
+          </button>
+        )}
+        <button className="new-workflow-button" type="button" onClick={onCreateNew}>
+          <Plus size={16} />
+          New workflow
         </button>
       </div>
     )
@@ -463,12 +380,12 @@ export function WorkflowDraftReview({
       </button>
       <p className="step-label success-label" role="status">
         <Check size={13} />
-        Answers saved
+        Workflow understood
       </p>
       <h2 id="recorder-title" ref={headingRef} tabIndex={-1}>
         Set up the workflow
       </h2>
-      <p className="intent-intro">Confirm where files should go, then save the workflow.</p>
+      <p className="intent-intro">Review the result, choose its folder and decide when it runs.</p>
 
       <form
         className="recipe-form"
@@ -505,56 +422,136 @@ export function WorkflowDraftReview({
           TaskTape only accesses the folder you choose here.
         </p>
 
-        <div className="destination-fields">
-          <div>
-            <label htmlFor="video-folder">Videos go to</label>
-            <input
-              id="video-folder"
-              value={recipe.videoFolder}
-              onChange={(event) => updateRecipe('videoFolder', event.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="image-folder">Images go to</label>
-            <input
-              id="image-folder"
-              value={recipe.imageFolder}
-              onChange={(event) => updateRecipe('imageFolder', event.target.value)}
-              required
-            />
-          </div>
+        <div className="understanding-summary">
+          <span>TaskTape will</span>
+          <p>
+            {recipe.operation === 'move' ? 'Move' : 'Copy'} videos to{' '}
+            <strong>{recipe.videoFolder}</strong> and images to{' '}
+            <strong>{recipe.imageFolder}</strong>.{' '}
+            {recipe.unmatchedPolicy === 'leave'
+              ? 'Other files stay where they are.'
+              : `Other files go to ${recipe.unmatchedFolder}.`}
+          </p>
         </div>
 
-        <fieldset className="recipe-choice">
-          <legend>File action</legend>
+        <details className="recipe-advanced">
+          <summary>Review organization rules</summary>
           <div>
-            {(['move', 'copy'] as const).map((operation) => (
-              <label key={operation}>
+            <div className="destination-fields">
+              <div>
+                <label htmlFor="video-folder">Videos go to</label>
                 <input
-                  type="radio"
-                  name="operation"
-                  value={operation}
-                  checked={recipe.operation === operation}
-                  onChange={() => updateRecipe('operation', operation)}
+                  id="video-folder"
+                  value={recipe.videoFolder}
+                  onChange={(event) => updateRecipe('videoFolder', event.target.value)}
+                  required
                 />
-                <span>{operation === 'move' ? 'Move originals' : 'Keep originals'}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+              </div>
+              <div>
+                <label htmlFor="image-folder">Images go to</label>
+                <input
+                  id="image-folder"
+                  value={recipe.imageFolder}
+                  onChange={(event) => updateRecipe('imageFolder', event.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-        <label htmlFor="unmatched-policy">Other files</label>
-        <select
-          id="unmatched-policy"
-          value={recipe.unmatchedPolicy}
-          onChange={(event) =>
-            updateRecipe('unmatchedPolicy', event.target.value as 'leave' | 'move')
-          }
-        >
-          <option value="leave">Leave them where they are</option>
-          <option value="move">Move them to Unsorted</option>
-        </select>
+            <fieldset className="recipe-choice">
+              <legend>File action</legend>
+              <div>
+                {(['move', 'copy'] as const).map((operation) => (
+                  <label key={operation}>
+                    <input
+                      type="radio"
+                      name="operation"
+                      value={operation}
+                      checked={recipe.operation === operation}
+                      onChange={() => updateRecipe('operation', operation)}
+                    />
+                    <span>{operation === 'move' ? 'Move originals' : 'Keep originals'}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <label htmlFor="unmatched-policy">Other files</label>
+            <select
+              id="unmatched-policy"
+              value={recipe.unmatchedPolicy}
+              onChange={(event) =>
+                updateRecipe('unmatchedPolicy', event.target.value as 'leave' | 'move')
+              }
+            >
+              <option value="leave">Leave them where they are</option>
+              <option value="move">Move them to Unsorted</option>
+            </select>
+          </div>
+        </details>
+
+        <section className="schedule-form" aria-labelledby="save-schedule-title">
+          <div className="schedule-heading">
+            <CalendarClock size={18} />
+            <div>
+              <h3 id="save-schedule-title">When should it run?</h3>
+              <p>Scheduled runs happen while TaskTape is open.</p>
+            </div>
+          </div>
+          <fieldset className="schedule-frequency save-frequency">
+            <legend className="sr-only">Run frequency</legend>
+            <div>
+              {(['manual', 'daily', 'weekly'] as const).map((option) => (
+                <label key={option}>
+                  <input
+                    type="radio"
+                    name="run-when"
+                    value={option}
+                    checked={runWhen === option}
+                    onChange={() => setRunWhen(option)}
+                  />
+                  <span>
+                    {option === 'manual'
+                      ? 'On demand'
+                      : option === 'daily'
+                        ? 'Every day'
+                        : 'Every week'}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {runWhen !== 'manual' ? (
+            <div className={`schedule-fields ${runWhen === 'daily' ? 'daily' : ''}`}>
+              {runWhen === 'weekly' ? (
+                <div>
+                  <label htmlFor="schedule-weekday">Day</label>
+                  <select
+                    id="schedule-weekday"
+                    value={weekday}
+                    onChange={(event) => setWeekday(Number(event.target.value))}
+                  >
+                    {WEEKDAYS.map((day, index) => (
+                      <option key={day} value={index}>
+                        {day}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              <div>
+                <label htmlFor="schedule-time">Time</label>
+                <input
+                  id="schedule-time"
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(event) => setScheduleTime(event.target.value)}
+                  required
+                />
+              </div>
+            </div>
+          ) : null}
+        </section>
 
         {error ? (
           <p className="workflow-error" role="alert">
@@ -566,11 +563,6 @@ export function WorkflowDraftReview({
           {busy === 'saving' ? 'Saving workflow' : 'Save workflow'}
         </button>
       </form>
-
-      <button className="edit-answers-button" type="button" onClick={onEdit}>
-        <Pencil size={15} />
-        Edit answers
-      </button>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-import type { AnalyzeRecordingInput } from '../shared/analysis-contracts.js'
+import type { AnalyzeRecordingInput, TranscribeIntentInput } from '../shared/analysis-contracts.js'
 import type { AppInfo, SaveRecordingInput, TaskTapeBridge } from '../shared/contracts.js'
 import { APP_NAME } from '../shared/contracts.js'
 
@@ -15,12 +15,15 @@ const bridge: TaskTapeBridge = {
   testMode: process.env.TASKTAPE_E2E === '1',
   recorder: {
     getPermissionStatus: () => ipcRenderer.invoke('recorder:get-permission-status'),
+    openMicrophoneSettings: () => ipcRenderer.invoke('recorder:open-microphone-settings'),
     listSources: () => ipcRenderer.invoke('recorder:list-sources'),
     selectSource: (id: string) => ipcRenderer.invoke('recorder:select-source', id),
     save: (input: SaveRecordingInput) => ipcRenderer.invoke('recorder:save', input),
     remove: (id: string) => ipcRenderer.invoke('recorder:remove', id)
   },
   analysis: {
+    transcribe: (input: TranscribeIntentInput) =>
+      ipcRenderer.invoke('analysis:transcribe-intent', input),
     analyze: (input: AnalyzeRecordingInput) => ipcRenderer.invoke('analysis:analyze', input)
   },
   settings: {
@@ -30,7 +33,7 @@ const bridge: TaskTapeBridge = {
   },
   workflow: {
     chooseDirectory: () => ipcRenderer.invoke('workflow:choose-directory'),
-    save: (input) => ipcRenderer.invoke('workflow:save', input),
+    save: (input, existingId) => ipcRenderer.invoke('workflow:save', input, existingId),
     plan: (workflowId) => ipcRenderer.invoke('workflow:plan', workflowId),
     execute: (input) => ipcRenderer.invoke('workflow:execute', input),
     saveSchedule: (input) => ipcRenderer.invoke('workflow:save-schedule', input),

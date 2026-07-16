@@ -24,6 +24,18 @@ export const TEST_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
     'The source folder and classification rules are not visible.',
     'The desired behavior for naming collisions is unknown.'
   ],
+  mediaRecipe: {
+    videoFolder: 'Raw Video',
+    imageFolder: 'Images',
+    operation: 'move',
+    unmatchedPolicy: 'leave',
+    unmatchedFolder: 'Unsorted'
+  },
+  scheduleProposal: {
+    frequency: 'weekly',
+    time: '09:00',
+    weekday: 1
+  },
   followUpQuestions: [
     {
       id: 'source_folder',
@@ -40,5 +52,5 @@ export const TEST_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
       options: ['Skip and report it', 'Create a unique name', 'Ask before each change']
     }
   ],
-  risks: ['Moving or renaming files requires a dry run and explicit approval.']
+  risks: ['Moving files requires exact change review and explicit approval.']
 }

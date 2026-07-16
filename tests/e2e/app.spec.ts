@@ -26,23 +26,12 @@ async function reachRecipeEditor(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Share window: Downloads - Finder' }).click()
   await page.waitForTimeout(150)
   await page.getByRole('button', { name: 'Stop and save' }).click()
-  await page.getByRole('button', { name: 'Explain this workflow' }).click()
   await page
-    .getByLabel('Where should TaskTape look for new videos and images?')
-    .fill('My Downloads folder')
-  await page
-    .getByLabel('How do you decide which folder each file belongs in?')
-    .fill('Sort by media type.')
-  await page
-    .getByLabel('What folder structure should TaskTape create or reuse?')
-    .fill('Videos / Images')
-  await page
-    .getByLabel('Should TaskTape move the original files or keep a copy?')
-    .selectOption('Move the originals')
-  await page
-    .getByLabel('What should happen when a file does not match any category?')
-    .selectOption('Leave it where it is')
-  await page.getByRole('button', { name: 'Save and review' }).click()
+    .getByLabel('Your description')
+    .fill(
+      'Move new videos to Raw Video and images to Images every Monday at 9 AM. Leave other files alone.'
+    )
+  await page.getByRole('button', { name: 'Review what TaskTape understood' }).click()
   await expect(page.getByRole('heading', { name: 'Set up the workflow' })).toBeVisible()
 }
 
@@ -104,90 +93,67 @@ test('records, saves, and runs a real media workflow', async () => {
     await page.waitForTimeout(650)
     await page.getByRole('button', { name: 'Stop and save' }).click()
 
-    await expect(page.getByRole('heading', { name: 'Ready to explain' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Describe the result' })).toBeVisible()
     await expect(page.getByTestId('recording-preview')).toBeVisible()
     await expect(page.getByTestId('frame-count')).toHaveText('1')
     const extractedFrame = page.getByTestId('key-frame')
-    await expect(extractedFrame).toBeVisible()
     expect(await extractedFrame.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(
       1280
     )
     expect(await extractedFrame.getAttribute('src')).toMatch(/^data:image\/jpeg;base64,/)
     expect(await readdir(join(userData, 'recordings'))).toHaveLength(2)
 
-    await page.getByRole('button', { name: 'Explain this workflow' }).click()
-    await expect(page.getByRole('heading', { name: 'A few quick questions' })).toBeVisible()
-    await expect(page.getByText('Goal', { exact: true })).toBeVisible()
-    const visibleInterviewText = await page.locator('.intent-interview').innerText()
-    expect(visibleInterviewText).not.toContain('—')
-    expect(visibleInterviewText).not.toContain('source_folder')
-
-    await page.setViewportSize({ width: 900, height: 620 })
-    const workspace = page.locator('.workspace')
-    const scrollMetrics = await workspace.evaluate((element) => ({
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight
-    }))
-    expect(scrollMetrics.scrollHeight).toBeGreaterThan(scrollMetrics.clientHeight)
-    await workspace.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
-    await expect(page.getByRole('button', { name: 'Save and review' })).toBeInViewport()
-
-    await page
-      .getByLabel('Where should TaskTape look for new videos and images?')
-      .fill('/Users/test/Downloads')
-    await page
-      .getByLabel('How do you decide which folder each file belongs in?')
-      .fill('Group files by project, then by media type.')
-    await page
-      .getByLabel('What folder structure should TaskTape create or reuse?')
-      .fill('Project / Raw Video / Images / Exports')
-    await page
-      .getByLabel('Should TaskTape move the original files or keep a copy?')
-      .selectOption('Move the originals')
-    await page
-      .getByLabel('What should happen when a file does not match any category?')
-      .selectOption('Put it in an Unsorted folder')
-    await page
-      .getByTestId('recording-preview')
-      .evaluate((video: HTMLVideoElement) => (video.style.visibility = 'hidden'))
-    await page
-      .locator('.recorder-copy')
-      .screenshot({ path: 'output/playwright/intent-interview.png' })
-    await page
-      .getByTestId('recording-preview')
-      .evaluate((video: HTMLVideoElement) => (video.style.visibility = ''))
+    await page.getByRole('button', { name: 'Record voice note' }).click()
+    await expect(page.getByText('Listening', { exact: true })).toBeVisible()
+    await page.waitForTimeout(250)
+    await page.getByRole('button', { name: 'Stop voice note' }).click()
+    await expect(page.getByLabel('Your description')).toHaveValue(
+      'Organize new videos and images into their project folders every Monday at 9 AM, and leave unmatched files in place.'
+    )
+    const statedIntent =
+      'Move new videos to Raw Video and images to Images every Monday at 9 AM. Leave other files where they are.'
+    await page.getByLabel('Your description').fill(statedIntent)
+    await page.screenshot({ path: 'output/playwright/voice-intent.png' })
+    await page.getByRole('button', { name: 'Review what TaskTape understood' }).click()
     await page.setViewportSize({ width: 1180, height: 760 })
-    await page.getByRole('button', { name: 'Save and review' }).click()
 
     await expect(page.getByRole('heading', { name: 'Set up the workflow' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Set up the workflow' })).toBeFocused()
     const playbackBox = await page.getByTestId('recording-preview').boundingBox()
     expect(playbackBox?.width).toBeGreaterThan(300)
-    await expect(page.getByText('Answers saved', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Save and review' })).toHaveCount(0)
-
-    await page.getByRole('button', { name: 'Edit answers' }).click()
-    await expect(page.getByRole('heading', { name: 'A few quick questions' })).toBeVisible()
-    await expect(
-      page.getByLabel('How do you decide which folder each file belongs in?')
-    ).toHaveValue('Group files by project, then by media type.')
-    await page.getByRole('button', { name: 'Save and review' }).click()
+    await expect(page.getByText('Workflow understood', { exact: true })).toBeVisible()
+    await expect(page.getByText(/Move videos to Raw Video and images to Images/)).toBeVisible()
 
     const editedGoal = 'Organize new creator videos and images into media folders.'
     await page.getByLabel('Goal').fill(editedGoal)
     await expect(page.getByLabel('Media folder')).toHaveValue('')
     await page.getByRole('button', { name: 'Choose folder' }).click()
     await expect(page.getByLabel('Media folder')).toHaveValue(mediaInbox)
+    await page.getByText('Review organization rules', { exact: true }).click()
     await expect(page.getByLabel('Videos go to')).toHaveValue('Raw Video')
     await expect(page.getByLabel('Images go to')).toHaveValue('Images')
     await expect(page.getByLabel('Move originals')).toBeChecked()
-    await expect(page.getByLabel('Other files')).toHaveValue('move')
-    await page.getByLabel('Other files').selectOption('leave')
+    await expect(page.getByLabel('Other files')).toHaveValue('leave')
+    await page.getByLabel('Every week').check()
+    await page.getByLabel('Day', { exact: true }).selectOption('1')
+    await page.getByLabel('Time', { exact: true }).fill('09:00')
     await page.screenshot({ path: 'output/playwright/workflow-recipe-editor.png' })
     await page.getByRole('button', { name: 'Save workflow' }).click()
 
     await expect(page.getByRole('heading', { name: 'Review and run' })).toBeVisible()
     await expect(page.getByText('Workflow saved', { exact: true })).toBeVisible()
+
+    const workflowIds = await readdir(join(userData, 'workflows'))
+    expect(workflowIds).toHaveLength(1)
+    const schedulePath = join(userData, 'workflows', workflowIds[0], 'schedule.json')
+    const schedule = JSON.parse(await readFile(schedulePath, 'utf8'))
+    expect(schedule).toMatchObject({
+      enabled: true,
+      frequency: 'weekly',
+      weekday: 1,
+      time: '09:00'
+    })
+
     await expect(page.getByText(editedGoal, { exact: true })).toBeVisible()
     await expect(page.getByText('launch.mp4', { exact: true })).toBeVisible()
     await expect(page.getByText('thumbnail.png', { exact: true })).toBeVisible()
@@ -211,8 +177,6 @@ test('records, saves, and runs a real media workflow', async () => {
     await expect(readFile(join(mediaInbox, 'thumbnail.png'))).rejects.toMatchObject({
       code: 'ENOENT'
     })
-    const workflowIds = await readdir(join(userData, 'workflows'))
-    expect(workflowIds).toHaveLength(1)
     const runFiles = await readdir(join(userData, 'workflows', workflowIds[0], 'runs'))
     expect(runFiles).toHaveLength(1)
     const runLog = JSON.parse(
@@ -220,23 +184,6 @@ test('records, saves, and runs a real media workflow', async () => {
     )
     expect(runLog).toMatchObject({ status: 'completed', trigger: 'manual' })
     await page.screenshot({ path: 'output/playwright/workflow-run-complete.png' })
-
-    await page.getByRole('button', { name: 'Schedule workflow' }).click()
-    await expect(page.getByRole('heading', { name: 'Schedule workflow' })).toBeVisible()
-    await page.getByLabel('Every week').check()
-    await page.getByLabel('Day', { exact: true }).selectOption('3')
-    await page.getByLabel('Time', { exact: true }).fill('09:30')
-    await page.getByRole('button', { name: 'Save schedule' }).click()
-    await expect(page.getByText(/^Next run:/)).toBeVisible()
-    const schedulePath = join(userData, 'workflows', workflowIds[0], 'schedule.json')
-    const schedule = JSON.parse(await readFile(schedulePath, 'utf8'))
-    expect(schedule).toMatchObject({
-      enabled: true,
-      frequency: 'weekly',
-      weekday: 3,
-      time: '09:30'
-    })
-    await page.screenshot({ path: 'output/playwright/workflow-scheduled.png' })
 
     await writeFile(join(mediaInbox, 'weekly.mp4'), 'scheduled video fixture')
     await writeFile(
@@ -258,7 +205,9 @@ test('records, saves, and runs a real media workflow', async () => {
 
     await page.getByRole('button', { name: 'Workflows' }).click()
     await expect(page.getByRole('heading', { name: '2 files updated' })).toBeVisible()
-    const newWorkflowButton = page.getByRole('button', { name: 'New workflow' })
+    const newWorkflowButton = page
+      .locator('.run-result')
+      .getByRole('button', { name: 'New workflow' })
     await page.locator('.workspace').evaluate((element) => element.scrollTo({ top: 0 }))
     await newWorkflowButton.scrollIntoViewIfNeeded()
     await expect(newWorkflowButton).toBeVisible()
@@ -271,6 +220,39 @@ test('records, saves, and runs a real media workflow', async () => {
     await expect(page.getByRole('button', { name: 'Start recording' })).toBeVisible()
     expect(await readdir(join(userData, 'recordings'))).toHaveLength(0)
     expect(rendererErrors).toEqual([])
+  } finally {
+    await application.close()
+    await rm(userData, { recursive: true, force: true })
+  }
+})
+
+test('keeps an empty saved workflow actionable', async () => {
+  const { application, userData } = await launchTestApp()
+  await mkdir(join(userData, 'media-inbox'))
+
+  try {
+    const page = await application.firstWindow()
+    await page.setViewportSize({ width: 900, height: 620 })
+    await reachRecipeEditor(page)
+    await page.getByRole('heading', { name: 'When should it run?' }).scrollIntoViewIfNeeded()
+    await expect(page.getByRole('heading', { name: 'When should it run?' })).toBeVisible()
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    ).toBe(true)
+    await page.getByRole('button', { name: 'Choose folder' }).click()
+    await page.getByRole('button', { name: 'Save workflow' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Review and run' })).toBeVisible()
+    await expect(page.getByText('No matching files need to change.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Check again' })).toBeEnabled()
+    const newWorkflowButton = page
+      .locator('.plan-review')
+      .getByRole('button', { name: 'New workflow' })
+    await expect(newWorkflowButton).toBeEnabled()
+    await page.screenshot({ path: 'output/playwright/empty-workflow-saved.png' })
+    await newWorkflowButton.click()
+    await expect(page.getByRole('button', { name: 'Start recording' })).toBeVisible()
+    expect(await readdir(join(userData, 'recordings'))).toHaveLength(0)
   } finally {
     await application.close()
     await rm(userData, { recursive: true, force: true })

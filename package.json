@@ -34,6 +34,9 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "TaskTape uses the microphone only when you record a voice note describing a workflow."
+      },
       "target": [
         "dmg",
         "zip"

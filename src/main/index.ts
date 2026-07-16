@@ -17,11 +17,16 @@ import {
 } from 'electron'
 
 import type { CaptureSource, SaveRecordingInput } from '../shared/contracts.js'
-import type { AnalyzeRecordingInput } from '../shared/analysis-contracts.js'
+import type { AnalyzeRecordingInput, TranscribeIntentInput } from '../shared/analysis-contracts.js'
 import { captureSourceIdSchema } from '../shared/capture-source-schema.js'
 import { recordingIdSchema } from '../shared/recording-schema.js'
 import type { SaveScheduleInput, SaveWorkflowInput } from '../shared/workflow-schema.js'
-import { analyzeRecording, requestOpenAIAnalysis } from './analysis.js'
+import {
+  analyzeRecording,
+  requestOpenAIAnalysis,
+  requestOpenAITranscription,
+  transcribeIntent
+} from './analysis.js'
 import { TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
 import {
   clearApiKey,
@@ -68,6 +73,8 @@ const credentialCipher: CredentialCipher = {
 const selectedCaptureSources = new Map<number, string>()
 const TEST_CAPTURE_THUMBNAIL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
+const TEST_INTENT_TRANSCRIPT =
+  'Organize new videos and images into their project folders every Monday at 9 AM, and leave unmatched files in place.'
 const TEST_CAPTURE_SOURCES: CaptureSource[] = [
   {
     id: 'screen:test:0',
@@ -117,18 +124,21 @@ async function captureSources(): Promise<CaptureSource[]> {
     })
 }
 
-function assertTrustedSender(event: IpcMainInvokeEvent): void {
-  const senderUrl = event.senderFrame?.url
+function isTrustedRendererUrl(senderUrl: string | undefined): boolean {
   const developmentUrl = process.env.ELECTRON_RENDERER_URL
-  let isTrusted = false
   try {
-    isTrusted = developmentUrl
+    return developmentUrl
       ? new URL(senderUrl ?? '').origin === new URL(developmentUrl).origin
       : senderUrl === pathToFileURL(join(__dirname, '../renderer/index.html')).href
   } catch {
-    isTrusted = false
+    return false
   }
-  if (!isTrusted) throw new Error('Rejected IPC request from an untrusted renderer')
+}
+
+function assertTrustedSender(event: IpcMainInvokeEvent): void {
+  if (!isTrustedRendererUrl(event.senderFrame?.url)) {
+    throw new Error('Rejected IPC request from an untrusted renderer')
+  }
 }
 
 function registerRecorderIpc(): void {
@@ -136,6 +146,15 @@ function registerRecorderIpc(): void {
     assertTrustedSender(event)
     if (process.platform !== 'darwin') return 'unknown'
     return systemPreferences.getMediaAccessStatus('screen')
+  })
+
+  ipcMain.handle('recorder:open-microphone-settings', async (event) => {
+    assertTrustedSender(event)
+    if (process.platform === 'darwin') {
+      await shell.openExternal(
+        'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone'
+      )
+    }
   })
 
   ipcMain.handle('recorder:list-sources', (event) => {
@@ -164,7 +183,36 @@ function registerRecorderIpc(): void {
   })
 }
 
+function registerMediaPermissions(): void {
+  session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
+    const audioOnly =
+      permission === 'media' &&
+      'mediaTypes' in details &&
+      details.mediaTypes?.length === 1 &&
+      details.mediaTypes[0] === 'audio'
+    callback(isTrustedRendererUrl(contents.getURL()) && audioOnly)
+  })
+}
+
 function registerAnalysisIpc(): void {
+  ipcMain.handle('analysis:transcribe-intent', async (event, input: TranscribeIntentInput) => {
+    assertTrustedSender(event)
+    if (process.env.TASKTAPE_E2E === '1') {
+      return transcribeIntent(input, async () => TEST_INTENT_TRANSCRIPT)
+    }
+    const credential = await resolveApiKey(
+      app.getPath('userData'),
+      process.env.OPENAI_API_KEY,
+      credentialCipher
+    )
+    if (!credential.apiKey) {
+      throw new Error('Add an OpenAI API key in Settings before transcribing intent.')
+    }
+    return transcribeIntent(input, (validatedInput) =>
+      requestOpenAITranscription(validatedInput, credential.apiKey ?? undefined)
+    )
+  })
+
   ipcMain.handle('analysis:analyze', async (event, input: AnalyzeRecordingInput) => {
     assertTrustedSender(event)
     if (process.env.TASKTAPE_E2E === '1') {
@@ -214,9 +262,9 @@ function registerWorkflowIpc(): void {
       : await dialog.showOpenDialog(options)
     return result.canceled ? null : (result.filePaths[0] ?? null)
   })
-  ipcMain.handle('workflow:save', (event, input: SaveWorkflowInput) => {
+  ipcMain.handle('workflow:save', (event, input: SaveWorkflowInput, existingId?: string) => {
     assertTrustedSender(event)
-    return saveWorkflow(workflowsRoot(), input)
+    return saveWorkflow(workflowsRoot(), input, existingId)
   })
   ipcMain.handle('workflow:plan', (event, workflowId: string) => {
     assertTrustedSender(event)
@@ -315,6 +363,7 @@ app.whenReady().then(() => {
   registerSettingsIpc()
   registerWorkflowIpc()
   registerDisplayCapture()
+  registerMediaPermissions()
   startWorkflowScheduler()
   createWindow()
   app.on('activate', () => {

@@ -1,6 +1,27 @@
 import { z } from 'zod'
 
+import {
+  MAX_TRANSCRIPTION_AUDIO_BYTES,
+  TRANSCRIBABLE_AUDIO_MIME_TYPES
+} from './analysis-contracts.js'
 import { recordingIdSchema } from './recording-schema.js'
+
+export const transcribeIntentInputSchema = z.object({
+  data: z
+    .instanceof(ArrayBuffer)
+    .refine((data) => data.byteLength > 0, 'Audio cannot be empty.')
+    .refine(
+      (data) => data.byteLength <= MAX_TRANSCRIPTION_AUDIO_BYTES,
+      'Audio must be 25 MB or smaller.'
+    ),
+  mimeType: z.enum(TRANSCRIBABLE_AUDIO_MIME_TYPES)
+})
+
+export const intentTranscriptSchema = z.string().trim().min(1).max(10_000)
+
+export const transcribeIntentResultSchema = z.object({
+  text: intentTranscriptSchema
+})
 
 export const extractedFrameSchema = z.object({
   timestampMs: z.number().int().nonnegative().max(3_600_000),
@@ -15,7 +36,25 @@ export const extractedFrameSchema = z.object({
 export const analyzeRecordingInputSchema = z.object({
   recordingId: recordingIdSchema,
   durationMs: z.number().int().min(100).max(3_600_000),
-  frames: z.array(extractedFrameSchema).min(1).max(8)
+  frames: z.array(extractedFrameSchema).min(1).max(8),
+  userIntent: intentTranscriptSchema
+})
+
+export const mediaRecipeSchema = z.object({
+  videoFolder: z.string().min(1).max(500),
+  imageFolder: z.string().min(1).max(500),
+  operation: z.enum(['move', 'copy']),
+  unmatchedPolicy: z.enum(['leave', 'move']),
+  unmatchedFolder: z.string().min(1).max(500).nullable()
+})
+
+export const scheduleProposalSchema = z.object({
+  frequency: z.enum(['manual', 'daily', 'weekly']),
+  time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable(),
+  weekday: z.number().int().min(0).max(6).nullable()
 })
 
 export const workflowAnalysisSchema = z.object({
@@ -43,6 +82,8 @@ export const workflowAnalysisSchema = z.object({
     )
     .max(12),
   uncertainties: z.array(z.string().min(1).max(180)).max(8),
+  mediaRecipe: mediaRecipeSchema.nullable(),
+  scheduleProposal: scheduleProposalSchema.nullable(),
   followUpQuestions: z
     .array(
       z.object({
@@ -53,9 +94,14 @@ export const workflowAnalysisSchema = z.object({
         options: z.array(z.string().min(1).max(100)).max(6)
       })
     )
-    .min(2)
+    .min(0)
     .max(5),
   risks: z.array(z.string().min(1).max(180)).max(8)
 })
 
-export type WorkflowAnalysis = z.infer<typeof workflowAnalysisSchema>
+type ParsedWorkflowAnalysis = z.infer<typeof workflowAnalysisSchema>
+
+export type WorkflowAnalysis = Omit<ParsedWorkflowAnalysis, 'mediaRecipe' | 'scheduleProposal'> & {
+  mediaRecipe?: ParsedWorkflowAnalysis['mediaRecipe']
+  scheduleProposal?: ParsedWorkflowAnalysis['scheduleProposal']
+}

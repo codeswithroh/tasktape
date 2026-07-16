@@ -1,20 +1,18 @@
 import {
-  Check,
   CircleDot,
   History,
   LoaderCircle,
   MonitorUp,
-  RotateCcw,
+  Plus,
   Settings2,
   Sparkles,
   Square,
-  Trash2,
   Workflow,
   X
 } from 'lucide-react'
 import { useState } from 'react'
 
-import { IntentInterview } from './analysis/IntentInterview'
+import { IntentCapture } from './analysis/IntentCapture'
 import { useAnalysis } from './analysis/useAnalysis'
 import { RunHistory } from './history/RunHistory'
 import { useRecorder } from './recorder/useRecorder'
@@ -29,17 +27,11 @@ function formatDuration(milliseconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1_024 * 1_024) return `${Math.max(1, Math.round(bytes / 1_024))} KB`
-  return `${(bytes / (1_024 * 1_024)).toFixed(1)} MB`
-}
-
 export function App(): React.JSX.Element {
   const [view, setView] = useState<'workflows' | 'history' | 'settings'>('workflows')
   const recorder = useRecorder()
   const analysis = useAnalysis()
-  const [confirmedAnswers, setConfirmedAnswers] = useState<Record<string, string> | null>(null)
-  const [isReviewing, setIsReviewing] = useState(false)
+  const [userIntent, setUserIntent] = useState('')
   const isBusy =
     recorder.state === 'requesting' ||
     recorder.state === 'saving' ||
@@ -47,12 +39,11 @@ export function App(): React.JSX.Element {
 
   const resetAnalysis = (): void => {
     analysis.reset()
-    setConfirmedAnswers(null)
-    setIsReviewing(false)
   }
 
   const createNewWorkflow = (): void => {
     resetAnalysis()
+    setUserIntent('')
     void recorder.discard()
     setView('workflows')
   }
@@ -107,9 +98,17 @@ export function App(): React.JSX.Element {
                   <p className="eyebrow">Your workflows</p>
                   <h1>Teach TaskTape a routine</h1>
                 </div>
-                <div className="local-status">
-                  <span />
-                  Local-first
+                <div className="header-actions">
+                  {recorder.state === 'ready' ? (
+                    <button type="button" onClick={createNewWorkflow}>
+                      <Plus size={15} />
+                      New workflow
+                    </button>
+                  ) : null}
+                  <div className="local-status">
+                    <span />
+                    Local-first
+                  </div>
                 </div>
               </header>
 
@@ -195,116 +194,39 @@ export function App(): React.JSX.Element {
                     </div>
 
                     <div className="recorder-copy">
-                      {analysis.state === 'ready' &&
-                      analysis.result &&
-                      isReviewing &&
-                      confirmedAnswers ? (
+                      {analysis.state === 'ready' && analysis.result ? (
                         <WorkflowDraftReview
                           analysis={analysis.result}
-                          answers={confirmedAnswers}
                           onBack={resetAnalysis}
-                          onEdit={() => setIsReviewing(false)}
                           onCreateNew={createNewWorkflow}
                           onViewHistory={() => setView('history')}
                         />
-                      ) : analysis.state === 'ready' && analysis.result ? (
-                        <IntentInterview
-                          analysis={analysis.result}
-                          initialAnswers={confirmedAnswers ?? undefined}
-                          onBack={resetAnalysis}
-                          onConfirm={(answers) => {
-                            setConfirmedAnswers(answers)
-                            setIsReviewing(true)
-                          }}
-                        />
                       ) : recorder.state === 'ready' && recorder.metadata ? (
                         <>
-                          <p className="step-label success-label">
-                            <Check size={13} />
-                            Recording saved
-                          </p>
-                          <h2 id="recorder-title">Ready to explain</h2>
-                          <p>
-                            Your recording is stored locally. Continue to clarify the intended
-                            outcome.
-                          </p>
-                          <dl className="recording-facts">
-                            <div>
-                              <dt>Length</dt>
-                              <dd>{formatDuration(recorder.metadata.durationMs)}</dd>
-                            </div>
-                            <div>
-                              <dt>Size</dt>
-                              <dd>{formatBytes(recorder.metadata.bytes)}</dd>
-                            </div>
-                            <div>
-                              <dt>Key frames</dt>
-                              <dd data-testid="frame-count">
-                                {recorder.frameError ? 'Unavailable' : recorder.frames.length}
-                              </dd>
-                            </div>
-                          </dl>
-                          {recorder.frames.length > 0 ? (
-                            <div className="frame-strip" aria-label="Locally prepared key frames">
-                              {recorder.frames.map((frame) => (
-                                <img
-                                  key={frame.timestampMs}
-                                  src={frame.dataUrl}
-                                  alt={`Key frame at ${formatDuration(frame.timestampMs)}`}
-                                  data-testid="key-frame"
-                                />
-                              ))}
-                            </div>
-                          ) : null}
-                          {recorder.frameError ? (
-                            <p className="honesty-note">
-                              Frame preparation failed: {recorder.frameError}
-                            </p>
-                          ) : null}
-                          {analysis.error ? (
-                            <p className="analysis-error">{analysis.error}</p>
-                          ) : null}
-                          <button
-                            className="record-button"
-                            type="button"
-                            disabled={
-                              recorder.frames.length === 0 || analysis.state === 'analyzing'
+                          <IntentCapture
+                            key={recorder.metadata.id}
+                            initialIntent={userIntent}
+                            analyzing={analysis.state === 'analyzing'}
+                            analysisError={
+                              recorder.frameError
+                                ? `Video preparation failed: ${recorder.frameError}`
+                                : analysis.error
                             }
-                            onClick={() =>
-                              void analysis.analyze(recorder.metadata!, recorder.frames)
-                            }
-                          >
-                            {analysis.state === 'analyzing' ? (
-                              <LoaderCircle className="spinner" size={17} />
-                            ) : (
-                              <Sparkles size={17} />
-                            )}
-                            {analysis.state === 'analyzing'
-                              ? 'Analyzing recording'
-                              : 'Explain this workflow'}
-                          </button>
-                          <div className="secondary-actions">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                resetAnalysis()
-                                void recorder.discard().then(recorder.start)
-                              }}
-                            >
-                              <RotateCcw size={16} />
-                              Record again
-                            </button>
-                            <button
-                              className="danger-action"
-                              type="button"
-                              onClick={() => {
-                                resetAnalysis()
-                                void recorder.discard()
-                              }}
-                            >
-                              <Trash2 size={16} />
-                              Discard
-                            </button>
+                            onSubmit={(intent) => {
+                              setUserIntent(intent)
+                              void analysis.analyze(recorder.metadata!, recorder.frames, intent)
+                            }}
+                          />
+                          <div className="sr-only" aria-hidden="true">
+                            <span data-testid="frame-count">{recorder.frames.length}</span>
+                            {recorder.frames.map((frame) => (
+                              <img
+                                key={frame.timestampMs}
+                                src={frame.dataUrl}
+                                alt=""
+                                data-testid="key-frame"
+                              />
+                            ))}
                           </div>
                         </>
                       ) : recorder.state === 'recording' ? (

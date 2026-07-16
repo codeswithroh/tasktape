@@ -10,7 +10,11 @@ interface AnalysisController {
   state: AnalysisState
   result: WorkflowAnalysis | null
   error: string | null
-  analyze: (recording: RecordingMetadata, frames: ExtractedFrame[]) => Promise<void>
+  analyze: (
+    recording: RecordingMetadata,
+    frames: ExtractedFrame[],
+    userIntent: string
+  ) => Promise<void>
   reset: () => void
 }
 
@@ -25,7 +29,11 @@ export function useAnalysis(): AnalysisController {
   const [error, setError] = useState<string | null>(null)
 
   const analyze = useCallback(
-    async (recording: RecordingMetadata, frames: ExtractedFrame[]): Promise<void> => {
+    async (
+      recording: RecordingMetadata,
+      frames: ExtractedFrame[],
+      userIntent: string
+    ): Promise<void> => {
       if (frames.length === 0) {
         setError('No key frames are available for analysis.')
         setState('error')
@@ -38,7 +46,8 @@ export function useAnalysis(): AnalysisController {
         const analysis = await window.tasktape.analysis.analyze({
           recordingId: recording.id,
           durationMs: recording.durationMs,
-          frames
+          frames,
+          userIntent
         })
         setResult(analysis)
         setState('ready')

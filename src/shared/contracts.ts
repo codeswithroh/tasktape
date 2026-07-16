@@ -52,12 +52,14 @@ export interface TaskTapeBridge {
   testMode: boolean
   recorder: {
     getPermissionStatus: () => Promise<ScreenPermissionStatus>
+    openMicrophoneSettings: () => Promise<void>
     listSources: () => Promise<CaptureSource[]>
     selectSource: (id: string) => Promise<void>
     save: (input: SaveRecordingInput) => Promise<RecordingMetadata>
     remove: (id: string) => Promise<void>
   }
   analysis: {
+    transcribe: (input: TranscribeIntentInput) => Promise<TranscribeIntentResult>
     analyze: (input: AnalyzeRecordingInput) => Promise<WorkflowAnalysis>
   }
   settings: {
@@ -67,14 +69,18 @@ export interface TaskTapeBridge {
   }
   workflow: {
     chooseDirectory: () => Promise<string | null>
-    save: (input: SaveWorkflowInput) => Promise<SavedWorkflow>
+    save: (input: SaveWorkflowInput, existingId?: string) => Promise<SavedWorkflow>
     plan: (workflowId: string) => Promise<WorkflowPlan>
     execute: (input: { workflowId: string; planId: string }) => Promise<WorkflowRun>
     saveSchedule: (input: SaveScheduleInput) => Promise<WorkflowSchedule>
     history: () => Promise<WorkflowHistoryEntry[]>
   }
 }
-import type { AnalyzeRecordingInput } from './analysis-contracts.js'
+import type {
+  AnalyzeRecordingInput,
+  TranscribeIntentInput,
+  TranscribeIntentResult
+} from './analysis-contracts.js'
 import type { WorkflowAnalysis } from './analysis-schema.js'
 import type {
   SaveScheduleInput,
