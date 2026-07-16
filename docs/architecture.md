@@ -21,13 +21,15 @@ TaskTape lists full displays and open application windows through Electron `desk
 
 ## Analysis pipeline
 
-The recorder saves a local video, then the sandboxed renderer uses native browser media decoding and a canvas to extract at most eight evenly spaced, downscaled JPEG frames. This avoids adding a GPL-licensed static `ffmpeg` distribution to the desktop package. TaskTape sends only those selected frames to the OpenAI Responses API. Audio capture and transcription are not implemented in Milestone 2's current scope.
+The recorder saves a local video, then the sandboxed renderer uses native browser media decoding and a canvas to extract at most eight evenly spaced, downscaled JPEG frames. This avoids adding a GPL-licensed static `ffmpeg` distribution to the desktop package.
+
+After recording, the user can type an intent or capture a bounded, microphone-only WebM/Opus voice note. The note is sent through the main process to `gpt-4o-mini-transcribe`; the editable transcript then becomes the primary intent input. TaskTape sends that transcript and only the selected video frames to the Responses API. Microphone permission is requested just in time and typing remains a complete fallback.
 
 The default analysis model is [`gpt-5.6`](https://developers.openai.com/api/docs/models/gpt-5.6-sol), which supports image input and structured outputs through the Responses API. Direct video input is not assumed; the frame extraction boundary is intentional and testable.
 
 ## Workflow intermediate representation
 
-Model output never executes directly. It must parse into a versioned Zod schema containing the confirmed goal, inputs, ordered known capabilities, approvals, ambiguity annotations, and change-review expectations. The executor accepts only schema-valid recipes and known capability types.
+Model output never executes directly. It must parse into a versioned Zod schema containing the goal, media rules, optional schedule proposal, observed evidence, and ambiguity annotations. The user can edit the goal, rules, source folder, and proposed timing before saving. The executor accepts only schema-valid recipes and known capability types.
 
 ## Initial capability boundary
 
@@ -41,7 +43,7 @@ Recordings, versioned workflow recipes, schedules, approved plans, and activity 
 
 ## Scheduling
 
-Each workflow can persist one daily or weekly schedule in local time. The main process checks for due schedules every 30 seconds, creates a fresh plan from the current folder contents, executes known filesystem capabilities, advances the next run time, and writes a normal activity log marked as scheduled. An overdue schedule is checked when the app launches.
+Each workflow can persist one daily or weekly schedule in local time as part of the save flow. A schedule stated in the transcript can prefill these controls, but it is not persisted until Save. The main process checks for due schedules every 30 seconds, creates a fresh plan from the current folder contents, executes known filesystem capabilities, advances the next run time, and writes a normal activity log marked as scheduled. An overdue schedule is checked when the app launches.
 
 The current scheduler runs only while TaskTape is open. Operating-system background launch and catch-up policy controls are intentionally deferred and are stated in the scheduling UI.
 
@@ -57,5 +59,5 @@ The current scheduler runs only while TaskTape is open. Operating-system backgro
 - Vitest for schema and domain behavior.
 - Integration tests for local persistence, media-frame boundaries, and capability adapters.
 - Playwright's Electron support for packaged user journeys.
-- Manual macOS verification for screen-recording permissions and native capture behavior.
+- Manual macOS verification for screen-recording and microphone permission behavior.
 - Live OpenAI tests labeled separately from deterministic mocked tests.

@@ -30,20 +30,19 @@ Exit gate:
 
 - A packaged development build records and plays back a workflow on macOS, and cancellation leaves no orphaned recording.
 
-## Milestone 2: Intent interview and analysis - Complete July 14
-
-Scope decision: the hackathon build uses bounded visual frames plus the intent interview. Narration capture and audio transcription are deferred because the interview provides explicit, editable context without expanding the permission and processing surface before the deadline.
+## Milestone 2: Dictated intent and analysis - Complete July 17
 
 Deliverables:
 
 - Bounded local frame extraction pipeline.
-- Structured recording summary.
-- Follow-up questions grounded in ambiguity from the demonstration.
-- Explicit separation of inferred and confirmed intent.
+- Microphone-only voice note capture with typed fallback.
+- Live transcription through `gpt-4o-mini-transcribe`.
+- Structured media recipe and optional schedule proposal grounded in the transcript and frames.
+- Editable goal and organization rules before anything is saved.
 
 Exit gate:
 
-- The reference recording produces a schema-valid analysis and useful follow-up questions in both mocked and live-model test runs.
+- The reference recording and transcript produce a schema-valid recipe in deterministic and live-model tests, and a real WAV reaches the production transcription provider.
 
 ## Milestone 2.5: User-managed credentials - Complete July 14
 
@@ -87,27 +86,26 @@ Exit gate:
 
 - The Electron journey moves disposable video and image fixtures into confirmed folders, leaves unsupported files unchanged, and verifies the persisted activity log.
 
-## Milestone 4B: Scheduling and history - In progress July 15
+## Milestone 4B: Scheduling and history - Complete July 17
 
 Deliverables:
 
 - Scheduler for saved workflows.
 - Run history with manual and scheduled results.
-- Idempotency and rollback strategy for the reference workflow.
+- Collision-safe reruns for the reference workflow.
 
 Exit gate:
 
 - Scheduled runs transform disposable fixtures correctly, and reruns do not corrupt prior results.
 
-Verified so far:
+Verified result:
 
 - Daily and weekly schedules persist locally and resume checking when TaskTape opens.
+- Scheduling is reviewed and saved with the workflow; spoken timing prefills the controls.
 - A packaged Electron test forces a schedule due, moves a new video fixture, and shows separate manual and scheduled history entries.
 - Fresh plans, exclusive destination creation, and collision skipping protect reruns from overwriting prior results.
 
-Remaining before this milestone closes:
-
-- Add schedule pause or removal controls and define a rollback strategy. History search remains a post-hackathon enhancement.
+Schedule pause or removal controls, rollback, and history search remain post-hackathon enhancements.
 
 ## Milestone 5: Product polish and submission - July 19-20
 
