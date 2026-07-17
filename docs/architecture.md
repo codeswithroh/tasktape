@@ -29,13 +29,17 @@ The default analysis model is [`gpt-5.6`](https://developers.openai.com/api/docs
 
 ## Workflow intermediate representation
 
-Model output never executes directly. It must parse into a versioned Zod schema containing the goal, media rules, optional schedule proposal, observed evidence, and ambiguity annotations. The user can edit the goal, rules, source folder, and proposed timing before saving. The executor accepts only schema-valid recipes and known capability types.
+Model output never executes directly. It must parse into a versioned Zod schema containing the goal, learned actions, optional schedule proposal, observed evidence, and a declared capability. The user can edit the goal, correct the natural-language description, choose the folder TaskTape may access, and review proposed timing before saving. The executor accepts only schema-valid recipes and known capability types.
+
+The analysis schema separates general product understanding from executable support. A workflow can be classified as `organize_files` with learned extension groups and child-folder destinations, or `not_yet_supported` with a concise explanation of what TaskTape understood. The renderer never converts an unsupported proposal into a misleading configuration form.
 
 ## Initial capability boundary
 
 The hackathon proof uses deterministic filesystem capabilities: inspect, classify, rename, create-directory, and move. Browser and arbitrary desktop control are future adapters, not simulated features in the initial build.
 
-The first executable recipe scans regular files at the top level of one user-selected folder. It classifies supported video and image extensions, creates user-confirmed destination folders, and either moves or copies with exclusive destination creation. Unsupported files and collisions stay unchanged. A persisted plan records file size and modification time; execution refuses an action if the source changed after review.
+The first executable recipe scans regular files at the top level of one user-selected folder. Its version 2 representation contains a dynamic list of model-inferred file groups, extension matchers, and child-folder destinations. This supports demonstrated structures such as footage, documents, archives, or project assets without hard-coded video and image fields. It creates only schema-valid child folders and either moves or copies with exclusive destination creation. Unmatched files and collisions stay unchanged. A persisted plan records file size and modification time; execution refuses an action if the source changed after review.
+
+Version 1 media recipes are migrated on read into equivalent version 2 learned rules. The source-folder permission boundary and deterministic executor remain unchanged during migration.
 
 ## Persistence
 

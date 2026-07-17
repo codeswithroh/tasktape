@@ -15,7 +15,6 @@ import {
   type WorkflowAnalysis,
   workflowAnalysisSchema
 } from '../shared/analysis-schema.js'
-import { planIntentInterview } from './interview-planner.js'
 
 type AnalysisProvider = (input: AnalyzeRecordingInput) => Promise<unknown>
 type ValidatedTranscribeIntentInput = ReturnType<typeof transcribeIntentInputSchema.parse>
@@ -39,19 +38,22 @@ The user's transcribed statement of intent is the primary description of their d
 weight when identifying the goal and proposing a workflow, while using the frames to ground observed steps and flag
 any conflict or unsupported detail instead of silently inventing evidence.
 Describe only what the frames support. Never claim that an action occurred between frames unless it is visible.
-Separate observed values from inferred values. Ask zero to five high-value follow-up questions that resolve intent,
-scope, safety boundaries, variable inputs, and ambiguous outcomes. Learn reusable rules from the demonstration instead
-of asking the user to confirm one observed filename. For media organization workflows, ask where new media comes from,
-how files are categorized, which folder structure to follow, whether to move or copy files, and how to handle files
-that do not match a category.
-For a media organization workflow, propose mediaRecipe with concrete video and image destination folders, move or
-copy behavior, and whether unmatched files stay in place or move to an unmatched folder. Otherwise set mediaRecipe
-to null.
+Separate observed values from inferred values. Record unresolved details as uncertainties instead of turning every
+inference into a form field. Learn reusable rules from the demonstration instead of asking the user to confirm one
+observed filename or manually restate every demonstrated destination.
+Always return learnedWorkflow as a general description of what was taught. Use capability organize_files only when
+the workflow can be executed by inspecting top-level files in one folder, matching file extensions, and moving or
+copying them into learned child folders. For that capability, infer reusable rules from the visible assets, folder
+names, and the user's stated intent. Each rule must include a human label, the matching extensions, and one immediate
+child-folder name without a slash. Infer sourceHint from a visible folder such as Downloads when possible. Do not
+force video and image categories; return whichever asset groups the demonstration supports. Set fileOrganization to
+null and capability to not_yet_supported when the workflow needs another application or capability. Never pretend an
+unsupported workflow can run.
 If the user states a run frequency or time, represent it in scheduleProposal. Weekdays use 0 for Sunday through 6
 for Saturday and times use local 24-hour HH:MM format. Use manual when the user explicitly wants on-demand runs. Set
 scheduleProposal to null when no schedule is stated. Never infer a schedule from the recording alone.
 Write in natural, everyday language. Keep the summary to one sentence of at most 20 words and the goal to at most
-18 words. Keep each question short; include exact file or folder names only when needed. Keep each reason to one
+18 words. Keep each step short; include exact file or folder names only when needed. Keep each reason to one
 brief sentence. Do not use em dashes, internal IDs, jargon, or snake case unless it is part of an exact filename.
 Do not generate executable code or claim that an automation is ready.`
 
@@ -136,15 +138,33 @@ export async function analyzeRecording(
     typeof providerOutput === 'object' && providerOutput !== null && !Array.isArray(providerOutput)
       ? {
           ...providerOutput,
-          mediaRecipe: 'mediaRecipe' in providerOutput ? providerOutput.mediaRecipe : null,
           scheduleProposal:
             'scheduleProposal' in providerOutput ? providerOutput.scheduleProposal : null
         }
       : providerOutput
   const analysis = workflowAnalysisSchema.parse(compatibleOutput)
+  const learned = analysis.learnedWorkflow
+  if (learned.capability === 'organize_files' && !learned.fileOrganization) {
+    throw new Error('The analysis did not include the learned file rules.')
+  }
+  if (learned.capability === 'not_yet_supported' && learned.fileOrganization) {
+    throw new Error('An unsupported workflow cannot include executable file rules.')
+  }
+  if (learned.fileOrganization) {
+    const extensions = learned.fileOrganization.rules.flatMap((rule) => rule.extensions)
+    if (new Set(extensions).size !== extensions.length) {
+      throw new Error('The analysis assigned one file type to more than one learned rule.')
+    }
+    if (
+      learned.fileOrganization.unmatchedPolicy === 'move' &&
+      !learned.fileOrganization.unmatchedFolder
+    ) {
+      throw new Error('The analysis did not include a destination for unmatched files.')
+    }
+  }
   const invalidEvidence = analysis.observedSteps.some((step) =>
     step.evidenceFrameIndexes.some((index) => index >= input.frames.length)
   )
   if (invalidEvidence) throw new Error('Analysis cited a frame that was not provided.')
-  return workflowAnalysisSchema.parse(planIntentInterview(analysis))
+  return analysis
 }

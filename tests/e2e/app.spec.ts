@@ -28,11 +28,9 @@ async function reachRecipeEditor(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Stop and save' }).click()
   await page
     .getByLabel('Your description')
-    .fill(
-      'Move new videos to Raw Video and images to Images every Monday at 9 AM. Leave other files alone.'
-    )
+    .fill('Organize new assets using the same structure I demonstrated every Monday at 9 AM.')
   await page.getByRole('button', { name: 'Review what TaskTape understood' }).click()
-  await expect(page.getByRole('heading', { name: 'Set up the workflow' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What TaskTape learned' })).toBeVisible()
 }
 
 test('launches the isolated TaskTape shell', async () => {
@@ -59,7 +57,7 @@ test('launches the isolated TaskTape shell', async () => {
   }
 })
 
-test('records, saves, and runs a real media workflow', async () => {
+test('learns, saves, and runs a demonstrated asset workflow', async () => {
   const { application, userData } = await launchTestApp({
     TASKTAPE_E2E_SCHEDULER_INTERVAL_MS: '100'
   })
@@ -67,6 +65,7 @@ test('records, saves, and runs a real media workflow', async () => {
   await mkdir(mediaInbox)
   await writeFile(join(mediaInbox, 'launch.mp4'), 'video fixture')
   await writeFile(join(mediaInbox, 'thumbnail.png'), 'image fixture')
+  await writeFile(join(mediaInbox, 'brand-assets.zip'), 'package fixture')
   await writeFile(join(mediaInbox, 'brief.txt'), 'leave this file')
 
   try {
@@ -108,32 +107,35 @@ test('records, saves, and runs a real media workflow', async () => {
     await page.waitForTimeout(250)
     await page.getByRole('button', { name: 'Stop voice note' }).click()
     await expect(page.getByLabel('Your description')).toHaveValue(
-      'Organize new videos and images into their project folders every Monday at 9 AM, and leave unmatched files in place.'
+      'Organize new assets using the structure I demonstrated every Monday at 9 AM, and leave anything unmatched in place.'
     )
     const statedIntent =
-      'Move new videos to Raw Video and images to Images every Monday at 9 AM. Leave other files where they are.'
+      'Organize new assets the same way I demonstrated every Monday at 9 AM. Leave anything unrelated alone.'
     await page.getByLabel('Your description').fill(statedIntent)
     await page.screenshot({ path: 'output/playwright/voice-intent.png' })
     await page.getByRole('button', { name: 'Review what TaskTape understood' }).click()
     await page.setViewportSize({ width: 1180, height: 760 })
 
-    await expect(page.getByRole('heading', { name: 'Set up the workflow' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Set up the workflow' })).toBeFocused()
+    const learnedHeading = page.getByRole('heading', { name: 'What TaskTape learned' })
+    await expect(learnedHeading).toBeVisible()
+    await expect(learnedHeading).toBeFocused()
     const playbackBox = await page.getByTestId('recording-preview').boundingBox()
     expect(playbackBox?.width).toBeGreaterThan(300)
     await expect(page.getByText('Workflow understood', { exact: true })).toBeVisible()
-    await expect(page.getByText(/Move videos to Raw Video and images to Images/)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'What TaskTape learned' })).toBeVisible()
+    await expect(page.getByText('Notice new assets', { exact: true })).toBeVisible()
+    await expect(page.getByText('Project footage', { exact: true })).toBeVisible()
+    await expect(page.getByText('Raw Video', { exact: true })).toBeVisible()
+    await expect(page.getByText('Project packages', { exact: true })).toBeVisible()
+    await expect(page.getByText('Deliverables', { exact: true })).toBeVisible()
+    await expect(page.getByLabel('Videos go to')).toHaveCount(0)
+    await expect(page.getByLabel('Images go to')).toHaveCount(0)
 
-    const editedGoal = 'Organize new creator videos and images into media folders.'
+    const editedGoal = 'Place new project assets into the demonstrated folder structure.'
     await page.getByLabel('Goal').fill(editedGoal)
-    await expect(page.getByLabel('Media folder')).toHaveValue('')
+    await expect(page.getByLabel('Folder this workflow can access')).toHaveValue('')
     await page.getByRole('button', { name: 'Choose folder' }).click()
-    await expect(page.getByLabel('Media folder')).toHaveValue(mediaInbox)
-    await page.getByText('Review organization rules', { exact: true }).click()
-    await expect(page.getByLabel('Videos go to')).toHaveValue('Raw Video')
-    await expect(page.getByLabel('Images go to')).toHaveValue('Images')
-    await expect(page.getByLabel('Move originals')).toBeChecked()
-    await expect(page.getByLabel('Other files')).toHaveValue('leave')
+    await expect(page.getByLabel('Folder this workflow can access')).toHaveValue(mediaInbox)
     await page.getByLabel('Every week').check()
     await page.getByLabel('Day', { exact: true }).selectOption('1')
     await page.getByLabel('Time', { exact: true }).fill('09:00')
@@ -158,12 +160,12 @@ test('records, saves, and runs a real media workflow', async () => {
     await expect(page.getByText('launch.mp4', { exact: true })).toBeVisible()
     await expect(page.getByText('thumbnail.png', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Run workflow' })).toBeDisabled()
-    await page.getByLabel('I reviewed these file changes.').check()
+    await page.getByLabel('I reviewed these changes.').check()
     await expect(page.getByRole('button', { name: 'Run workflow' })).toBeEnabled()
     await page.screenshot({ path: 'output/playwright/workflow-run-approval.png' })
     await page.getByRole('button', { name: 'Run workflow' }).click()
 
-    await expect(page.getByRole('heading', { name: '2 files updated' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '3 items updated' })).toBeVisible()
     await expect(page.getByText('Run completed', { exact: true })).toBeVisible()
     await expect(page.getByText('The run is complete and saved in your history.')).toBeVisible()
     expect(await readFile(join(mediaInbox, 'Raw Video', 'launch.mp4'), 'utf8')).toBe(
@@ -172,9 +174,15 @@ test('records, saves, and runs a real media workflow', async () => {
     expect(await readFile(join(mediaInbox, 'Images', 'thumbnail.png'), 'utf8')).toBe(
       'image fixture'
     )
+    expect(await readFile(join(mediaInbox, 'Deliverables', 'brand-assets.zip'), 'utf8')).toBe(
+      'package fixture'
+    )
     expect(await readFile(join(mediaInbox, 'brief.txt'), 'utf8')).toBe('leave this file')
     await expect(readFile(join(mediaInbox, 'launch.mp4'))).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(readFile(join(mediaInbox, 'thumbnail.png'))).rejects.toMatchObject({
+      code: 'ENOENT'
+    })
+    await expect(readFile(join(mediaInbox, 'brand-assets.zip'))).rejects.toMatchObject({
       code: 'ENOENT'
     })
     const runFiles = await readdir(join(userData, 'workflows', workflowIds[0], 'runs'))
@@ -196,15 +204,15 @@ test('records, saves, and runs a real media workflow', async () => {
 
     await page.getByRole('button', { name: 'View run history' }).click()
     await expect(page.getByRole('heading', { name: 'Run history' })).toBeVisible()
-    await expect(page.getByText('Organize creator media', { exact: true })).toHaveCount(2)
+    await expect(page.getByText('Organize project assets', { exact: true })).toHaveCount(2)
     await expect(page.getByText('Manual', { exact: true })).toBeVisible()
     await expect(page.getByText('Scheduled', { exact: true })).toBeVisible()
-    await expect(page.getByText('2 updated', { exact: true })).toBeVisible()
+    await expect(page.getByText('3 updated', { exact: true })).toBeVisible()
     await expect(page.getByText('1 updated', { exact: true })).toBeVisible()
     await page.screenshot({ path: 'output/playwright/run-history.png' })
 
     await page.getByRole('button', { name: 'Workflows' }).click()
-    await expect(page.getByRole('heading', { name: '2 files updated' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '3 items updated' })).toBeVisible()
     const newWorkflowButton = page
       .locator('.run-result')
       .getByRole('button', { name: 'New workflow' })
@@ -243,7 +251,7 @@ test('keeps an empty saved workflow actionable', async () => {
     await page.getByRole('button', { name: 'Save workflow' }).click()
 
     await expect(page.getByRole('heading', { name: 'Review and run' })).toBeVisible()
-    await expect(page.getByText('No matching files need to change.')).toBeVisible()
+    await expect(page.getByText('Nothing needs to change right now.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Check again' })).toBeEnabled()
     const newWorkflowButton = page
       .locator('.plan-review')
@@ -259,6 +267,38 @@ test('keeps an empty saved workflow actionable', async () => {
   }
 })
 
+test('shows an understood workflow honestly when its capability is unavailable', async () => {
+  const { application, userData } = await launchTestApp({
+    TASKTAPE_E2E_ANALYSIS: 'unsupported'
+  })
+
+  try {
+    const page = await application.firstWindow()
+    await page.getByRole('button', { name: 'Start recording' }).click()
+    await page.getByRole('button', { name: 'Share window: Creator dashboard - Browser' }).click()
+    await page.waitForTimeout(150)
+    await page.getByRole('button', { name: 'Stop and save' }).click()
+    await page
+      .getByLabel('Your description')
+      .fill('Review my weekly project update and publish it to the team workspace.')
+    await page.getByRole('button', { name: 'Review what TaskTape understood' }).click()
+
+    await expect(page.getByText('What TaskTape learned', { exact: true })).toBeVisible()
+    await expect(page.getByText('Review the update', { exact: true })).toBeVisible()
+    await expect(page.getByText('Publish to the workspace', { exact: true })).toBeVisible()
+    await expect(page.getByText('This workflow cannot run in this build yet')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save workflow' })).toHaveCount(0)
+    await expect(page.getByText('Folder access', { exact: true })).toHaveCount(0)
+    await expect(
+      page.locator('.unsupported-actions').getByRole('button', { name: 'New workflow' })
+    ).toBeEnabled()
+    await page.screenshot({ path: 'output/playwright/unsupported-workflow.png' })
+  } finally {
+    await application.close()
+    await rm(userData, { recursive: true, force: true })
+  }
+})
+
 test('keeps natural folder answers out of execution and handles chooser cancellation', async () => {
   const { application, userData } = await launchTestApp({
     TASKTAPE_E2E_DIRECTORY_MODE: 'cancel'
@@ -267,10 +307,10 @@ test('keeps natural folder answers out of execution and handles chooser cancella
   try {
     const page = await application.firstWindow()
     await reachRecipeEditor(page)
-    await expect(page.getByLabel('Media folder')).toHaveValue('')
+    await expect(page.getByLabel('Folder this workflow can access')).toHaveValue('')
     await page.getByRole('button', { name: 'Save workflow' }).click()
     await expect(page.getByRole('alert')).toHaveText(
-      'Choose the media folder before saving this workflow.'
+      'Choose the folder this workflow can access before saving.'
     )
     const visibleText = await page.locator('.recipe-editor').innerText()
     expect(visibleText).not.toContain('Error invoking remote method')

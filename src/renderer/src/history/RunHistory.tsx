@@ -48,7 +48,7 @@ export function RunHistory({ onCreateNew }: RunHistoryProps): React.JSX.Element 
         <div>
           <p className="eyebrow">Activity</p>
           <h1 id="history-title">Run history</h1>
-          <p>See every file change made by TaskTape.</p>
+          <p>See what each workflow changed and when it ran.</p>
         </div>
         <button
           className="icon-button"

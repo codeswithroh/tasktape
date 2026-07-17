@@ -1,56 +1,99 @@
 import type { WorkflowAnalysis } from '../shared/analysis-schema.js'
 
 export const TEST_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
-  title: 'Organize creator media',
-  summary: 'The recording shows videos and images being organized into folders.',
-  goalHypothesis: 'Organize new videos and images using the same folder structure after review.',
+  title: 'Organize project assets',
+  summary: 'The recording shows new assets being placed into an existing project structure.',
+  goalHypothesis: 'Place new assets into the folder structure shown in the recording.',
   observedSteps: [
     {
       order: 1,
-      action: 'Open the workflow workspace and review the visible items.',
-      target: 'TaskTape test workflow',
+      action: 'Review the new assets and the visible destination folders.',
+      target: 'Downloads',
       evidenceFrameIndexes: [0]
     }
   ],
   variables: [
     {
-      name: 'input location',
-      currentValue: 'Not visible in the recording',
-      source: 'inferred',
-      reason: 'A reusable workflow needs a bounded source location.'
+      name: 'watched folder',
+      currentValue: 'Downloads',
+      source: 'observed',
+      reason: 'The recording shows the Downloads folder.'
     }
   ],
-  uncertainties: [
-    'The source folder and classification rules are not visible.',
-    'The desired behavior for naming collisions is unknown.'
-  ],
-  mediaRecipe: {
-    videoFolder: 'Raw Video',
-    imageFolder: 'Images',
-    operation: 'move',
-    unmatchedPolicy: 'leave',
-    unmatchedFolder: 'Unsorted'
+  uncertainties: ['Files that do not match a demonstrated asset group should remain untouched.'],
+  learnedWorkflow: {
+    capability: 'organize_files',
+    summary: 'Sort new assets into the matching folders shown in the recording.',
+    steps: [
+      {
+        label: 'Notice new assets',
+        description: 'Check the selected folder for newly added project files.'
+      },
+      {
+        label: 'Match the demonstrated structure',
+        description: 'Identify each asset using the file patterns learned from the recording.'
+      },
+      {
+        label: 'Place each asset',
+        description:
+          'Move matching assets into their learned project folders and leave others alone.'
+      }
+    ],
+    fileOrganization: {
+      sourceHint: 'Downloads',
+      operation: 'move',
+      rules: [
+        {
+          id: 'project_footage',
+          label: 'Project footage',
+          extensions: ['.avi', '.m4v', '.mkv', '.mov', '.mp4', '.webm'],
+          destinationFolder: 'Raw Video'
+        },
+        {
+          id: 'visual_assets',
+          label: 'Visual assets',
+          extensions: ['.gif', '.heic', '.jpeg', '.jpg', '.png', '.raw', '.webp'],
+          destinationFolder: 'Images'
+        },
+        {
+          id: 'project_packages',
+          label: 'Project packages',
+          extensions: ['.zip'],
+          destinationFolder: 'Deliverables'
+        }
+      ],
+      unmatchedPolicy: 'leave',
+      unmatchedFolder: null
+    }
   },
   scheduleProposal: {
     frequency: 'weekly',
     time: '09:00',
     weekday: 1
   },
-  followUpQuestions: [
-    {
-      id: 'source_folder',
-      prompt: 'Which folder should TaskTape check?',
-      reason: 'This sets a clear boundary for the workflow.',
-      answerType: 'text',
-      options: []
-    },
-    {
-      id: 'collision_policy',
-      prompt: 'What should happen when a file name already exists?',
-      reason: 'This prevents accidental overwrites.',
-      answerType: 'single_choice',
-      options: ['Skip and report it', 'Create a unique name', 'Ask before each change']
-    }
-  ],
   risks: ['Moving files requires exact change review and explicit approval.']
+}
+
+export const TEST_UNSUPPORTED_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
+  ...TEST_WORKFLOW_ANALYSIS,
+  title: 'Publish weekly project update',
+  summary: 'The recording shows a project update being reviewed and published in another app.',
+  goalHypothesis: 'Review and publish the weekly project update.',
+  learnedWorkflow: {
+    capability: 'not_yet_supported',
+    summary: 'Review the project update and publish it to the team workspace.',
+    steps: [
+      {
+        label: 'Review the update',
+        description: 'Check the drafted project update for accuracy.'
+      },
+      {
+        label: 'Publish to the workspace',
+        description: 'Open the team workspace and publish the approved update.'
+      }
+    ],
+    fileOrganization: null
+  },
+  scheduleProposal: null,
+  risks: ['Publishing content is externally visible and requires explicit approval.']
 }

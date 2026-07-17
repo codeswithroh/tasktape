@@ -16,6 +16,7 @@ import {
   executeWorkflowInputSchema,
   type SavedWorkflow,
   type SaveWorkflowInput,
+  legacySavedWorkflowSchema,
   savedWorkflowSchema,
   saveWorkflowInputSchema,
   type WorkflowPlan,
@@ -31,8 +32,8 @@ import {
   workflowHistoryEntrySchema
 } from '../shared/workflow-schema.js'
 
-const VIDEO_EXTENSIONS = new Set(['.avi', '.m4v', '.mkv', '.mov', '.mp4', '.webm'])
-const IMAGE_EXTENSIONS = new Set(['.gif', '.heic', '.jpeg', '.jpg', '.png', '.raw', '.webp'])
+const LEGACY_VIDEO_EXTENSIONS = ['.avi', '.m4v', '.mkv', '.mov', '.mp4', '.webm']
+const LEGACY_IMAGE_EXTENSIONS = ['.gif', '.heic', '.jpeg', '.jpg', '.png', '.raw', '.webp']
 
 async function writeJson(path: string, value: unknown): Promise<void> {
   const temporaryPath = `${path}.${randomUUID()}.tmp`
@@ -46,8 +47,41 @@ function workflowDirectory(root: string, workflowId: string): string {
 
 async function readWorkflow(root: string, workflowId: string): Promise<SavedWorkflow> {
   const id = workflowIdSchema.parse(workflowId)
-  const content = await readFile(join(workflowDirectory(root, id), 'workflow.json'), 'utf8')
-  return savedWorkflowSchema.parse(JSON.parse(content))
+  const path = join(workflowDirectory(root, id), 'workflow.json')
+  const content = JSON.parse(await readFile(path, 'utf8'))
+  const current = savedWorkflowSchema.safeParse(content)
+  if (current.success) return current.data
+
+  const legacy = legacySavedWorkflowSchema.parse(content)
+  const migrated = savedWorkflowSchema.parse({
+    version: 2,
+    id: legacy.id,
+    name: legacy.name,
+    goal: legacy.goal,
+    capability: 'organize_files',
+    sourceDirectory: legacy.sourceDirectory,
+    operation: legacy.operation,
+    rules: [
+      {
+        id: 'video_files',
+        label: 'Video files',
+        extensions: LEGACY_VIDEO_EXTENSIONS,
+        destinationFolder: legacy.videoFolder
+      },
+      {
+        id: 'image_files',
+        label: 'Image files',
+        extensions: LEGACY_IMAGE_EXTENSIONS,
+        destinationFolder: legacy.imageFolder
+      }
+    ],
+    unmatchedPolicy: legacy.unmatchedPolicy,
+    unmatchedFolder: legacy.unmatchedPolicy === 'move' ? legacy.unmatchedFolder : null,
+    createdAt: legacy.createdAt,
+    updatedAt: legacy.updatedAt
+  })
+  await writeJson(path, migrated)
+  return migrated
 }
 
 export async function saveWorkflow(
@@ -58,13 +92,13 @@ export async function saveWorkflow(
   const input = saveWorkflowInputSchema.parse(rawInput)
   const sourceInfo = await stat(input.sourceDirectory).catch(() => null)
   if (!sourceInfo?.isDirectory()) {
-    throw new Error('That media folder is no longer available. Choose it again.')
+    throw new Error('That source folder is no longer available. Choose it again.')
   }
   const previous = existingId ? await readWorkflow(root, workflowIdSchema.parse(existingId)) : null
   const now = new Date().toISOString()
   const workflow = savedWorkflowSchema.parse({
     ...input,
-    version: 1,
+    version: 2,
     id: previous?.id ?? randomUUID(),
     createdAt: previous?.createdAt ?? now,
     updatedAt: now
@@ -77,10 +111,11 @@ export async function saveWorkflow(
   return workflow
 }
 
-function classify(extension: string): 'video' | 'image' | 'unmatched' {
-  if (VIDEO_EXTENSIONS.has(extension)) return 'video'
-  if (IMAGE_EXTENSIONS.has(extension)) return 'image'
-  return 'unmatched'
+function findRule(
+  workflow: SavedWorkflow,
+  extension: string
+): SavedWorkflow['rules'][number] | null {
+  return workflow.rules.find((rule) => rule.extensions.includes(extension)) ?? null
 }
 
 export async function createWorkflowPlan(root: string, workflowId: string): Promise<WorkflowPlan> {
@@ -96,18 +131,17 @@ export async function createWorkflowPlan(root: string, workflowId: string): Prom
   for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
     if (!entry.isFile()) continue
     const sourcePath = join(workflow.sourceDirectory, entry.name)
-    const category = classify(extname(entry.name).toLowerCase())
-    if (category === 'unmatched' && workflow.unmatchedPolicy === 'leave') {
-      skipped.push({ path: sourcePath, reason: 'No matching media category.' })
+    const rule = findRule(workflow, extname(entry.name).toLowerCase())
+    if (!rule && workflow.unmatchedPolicy === 'leave') {
+      skipped.push({ path: sourcePath, reason: 'No learned rule matches this file type.' })
       continue
     }
 
-    const folder =
-      category === 'video'
-        ? workflow.videoFolder
-        : category === 'image'
-          ? workflow.imageFolder
-          : workflow.unmatchedFolder
+    const folder = rule?.destinationFolder ?? workflow.unmatchedFolder
+    if (!folder) {
+      skipped.push({ path: sourcePath, reason: 'No destination is configured for this file type.' })
+      continue
+    }
     const destinationPath = join(workflow.sourceDirectory, folder, basename(entry.name))
     try {
       await stat(destinationPath)
@@ -120,7 +154,7 @@ export async function createWorkflowPlan(root: string, workflowId: string): Prom
     const sourceStat = await stat(sourcePath)
     actions.push({
       id: randomUUID(),
-      category,
+      category: rule?.label ?? 'Unmatched files',
       operation: workflow.operation,
       sourcePath,
       destinationPath,
@@ -144,6 +178,14 @@ export async function createWorkflowPlan(root: string, workflowId: string): Prom
 async function moveWithoutOverwrite(sourcePath: string, destinationPath: string): Promise<void> {
   await copyFile(sourcePath, destinationPath, constants.COPYFILE_EXCL)
   await unlink(sourcePath)
+}
+
+function fileOperationError(error: unknown): string {
+  if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+    return 'A file with this name already exists.'
+  }
+  const message = error instanceof Error ? error.message : 'The file operation failed.'
+  return message.slice(0, 240)
 }
 
 export async function executeWorkflowPlan(
@@ -186,7 +228,7 @@ export async function executeWorkflowPlan(
         sourcePath: action.sourcePath,
         destinationPath: action.destinationPath,
         status: 'failed',
-        message: error instanceof Error ? error.message : 'The file operation failed.'
+        message: fileOperationError(error)
       })
     }
   }

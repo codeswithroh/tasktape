@@ -9,7 +9,7 @@ import { TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
 const input: AnalyzeRecordingInput = {
   recordingId: '9d9ca2de-0bc1-45eb-977e-9c9bcba8a77d',
   durationMs: 5_000,
-  userIntent: 'Sort my videos and images into the right project folders.',
+  userIntent: 'Organize new assets using the same structure I demonstrated.',
   frames: [
     {
       timestampMs: 2_500,
@@ -23,6 +23,20 @@ const input: AnalyzeRecordingInput = {
 describe('recording analysis boundary', () => {
   it('converts the workflow contract to an OpenAI strict structured-output schema', () => {
     expect(() => zodTextFormat(workflowAnalysisSchema, 'tasktape_workflow_analysis')).not.toThrow()
+  })
+
+  it('accepts only immediate child-folder names in learned rules', () => {
+    for (const destinationFolder of ['.', '..', 'nested/folder', 'nested\\folder']) {
+      const invalid = structuredClone(TEST_WORKFLOW_ANALYSIS)
+      invalid.learnedWorkflow.fileOrganization!.rules[0].destinationFolder = destinationFolder
+      expect(workflowAnalysisSchema.safeParse(invalid).success).toBe(false)
+    }
+
+    for (const destinationFolder of ['Projects', '.archive', '...']) {
+      const valid = structuredClone(TEST_WORKFLOW_ANALYSIS)
+      valid.learnedWorkflow.fileOrganization!.rules[0].destinationFolder = destinationFolder
+      expect(workflowAnalysisSchema.safeParse(valid).success).toBe(true)
+    }
   })
 
   it('labels frame evidence in the multimodal request', () => {
@@ -39,67 +53,61 @@ describe('recording analysis boundary', () => {
     expect(content[2]).toMatchObject({ type: 'input_image', detail: 'low' })
   })
 
-  it('replaces file-specific questions with reusable media organization rules', async () => {
+  it('preserves a general learned workflow without forcing follow-up fields', async () => {
     const provider = vi.fn().mockResolvedValue(TEST_WORKFLOW_ANALYSIS)
     const result = await analyzeRecording(input, provider)
 
     expect(provider).toHaveBeenCalledOnce()
-    expect(result.followUpQuestions).toHaveLength(5)
-    expect(result.followUpQuestions.every((question) => question.reason.length > 20)).toBe(true)
-    expect(result.followUpQuestions.map((question) => question.id)).toEqual([
-      'media_source',
-      'category_rules',
-      'folder_structure',
-      'file_action',
-      'unmatched_media'
-    ])
-    expect(result.followUpQuestions.map((question) => question.prompt).join(' ')).not.toContain(
-      'free_file_flip.mp4'
-    )
+    expect(result.learnedWorkflow.capability).toBe('organize_files')
+    expect(result.learnedWorkflow.steps).toHaveLength(3)
   })
 
-  it('preserves model questions for workflows outside media organization', async () => {
-    const generalAnalysis = {
+  it('represents workflows outside the current executor honestly', async () => {
+    const unsupportedAnalysis = {
       ...TEST_WORKFLOW_ANALYSIS,
       title: 'Prepare a weekly report',
       summary: 'The recording shows rows being reviewed before a report is submitted.',
-      goalHypothesis: 'Review the report and submit it after approval.'
+      goalHypothesis: 'Review the report and submit it after approval.',
+      learnedWorkflow: {
+        capability: 'not_yet_supported' as const,
+        summary: 'Review report rows and submit the completed report.',
+        steps: [
+          { label: 'Review rows', description: 'Check the report data for completeness.' },
+          { label: 'Submit report', description: 'Send the completed report for review.' }
+        ],
+        fileOrganization: null
+      }
     }
 
-    const result = await analyzeRecording(input, async () => generalAnalysis)
+    const result = await analyzeRecording(input, async () => unsupportedAnalysis)
 
-    expect(result.followUpQuestions).toEqual(TEST_WORKFLOW_ANALYSIS.followUpQuestions)
+    expect(result.learnedWorkflow).toMatchObject({
+      capability: 'not_yet_supported',
+      fileOrganization: null
+    })
   })
 
-  it('allows a complete analysis to have no follow-up questions', async () => {
+  it('allows a complete analysis without an interview', async () => {
     const completeAnalysis = {
       ...TEST_WORKFLOW_ANALYSIS,
       title: 'Prepare a weekly report',
       summary: 'The recording shows a completed report being reviewed.',
-      goalHypothesis: 'Review the completed report.',
-      followUpQuestions: []
+      goalHypothesis: 'Review the completed report.'
     }
 
     await expect(analyzeRecording(input, async () => completeAnalysis)).resolves.toMatchObject({
-      followUpQuestions: []
+      goalHypothesis: 'Review the completed report.'
     })
   })
 
-  it('preserves a structured media recipe proposal', async () => {
-    const mediaRecipe = {
-      videoFolder: '/Media/Project/Video',
-      imageFolder: '/Media/Project/Images',
-      operation: 'copy' as const,
-      unmatchedPolicy: 'leave' as const,
-      unmatchedFolder: null
-    }
+  it('preserves dynamically learned asset groups', async () => {
+    const result = await analyzeRecording(input, async () => TEST_WORKFLOW_ANALYSIS)
 
-    const result = await analyzeRecording(input, async () => ({
-      ...TEST_WORKFLOW_ANALYSIS,
-      mediaRecipe
-    }))
-
-    expect(result.mediaRecipe).toEqual(mediaRecipe)
+    expect(result.learnedWorkflow.fileOrganization?.rules.map((rule) => rule.label)).toEqual([
+      'Project footage',
+      'Visual assets',
+      'Project packages'
+    ])
   })
 
   it('preserves a schedule stated by the user', async () => {

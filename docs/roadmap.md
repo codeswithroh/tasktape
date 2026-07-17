@@ -37,8 +37,8 @@ Deliverables:
 - Bounded local frame extraction pipeline.
 - Microphone-only voice note capture with typed fallback.
 - Live transcription through `gpt-4o-mini-transcribe`.
-- Structured media recipe and optional schedule proposal grounded in the transcript and frames.
-- Editable goal and organization rules before anything is saved.
+- Structured learned-workflow proposal and optional schedule grounded in the transcript and frames.
+- Editable goal, natural-language correction path, and inferred actions before anything is saved.
 
 Exit gate:
 
@@ -71,7 +71,7 @@ Exit gate:
 
 Verified result:
 
-- The editable recipe persists locally and previews exact top-level media moves or copies. Automated filesystem tests cover unsupported files, collisions, path traversal, changed sources, and late destination collisions.
+- The editable recipe persists locally and previews exact top-level moves or copies from dynamic learned file groups. Version 1 recipes migrate safely. Automated filesystem tests cover unmatched files, collisions, path traversal, changed sources, and late destination collisions.
 
 ## Milestone 4A: Immediate execution and logs - Complete July 15
 
@@ -84,7 +84,7 @@ Deliverables:
 
 Exit gate:
 
-- The Electron journey moves disposable video and image fixtures into confirmed folders, leaves unsupported files unchanged, and verifies the persisted activity log.
+- The Electron journey moves disposable footage, visual assets, and project packages into inferred folders, leaves unmatched files unchanged, and verifies the persisted activity log.
 
 ## Milestone 4B: Scheduling and history - Complete July 17
 
@@ -102,7 +102,7 @@ Verified result:
 
 - Daily and weekly schedules persist locally and resume checking when TaskTape opens.
 - Scheduling is reviewed and saved with the workflow; spoken timing prefills the controls.
-- A packaged Electron test forces a schedule due, moves a new video fixture, and shows separate manual and scheduled history entries.
+- A packaged Electron test forces a schedule due, moves a new asset fixture, and shows separate manual and scheduled history entries.
 - Fresh plans, exclusive destination creation, and collision skipping protect reruns from overwriting prior results.
 
 Schedule pause or removal controls, rollback, and history search remain post-hackathon enhancements.

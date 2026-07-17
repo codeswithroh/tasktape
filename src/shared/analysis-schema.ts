@@ -40,12 +40,46 @@ export const analyzeRecordingInputSchema = z.object({
   userIntent: intentTranscriptSchema
 })
 
-export const mediaRecipeSchema = z.object({
-  videoFolder: z.string().min(1).max(500),
-  imageFolder: z.string().min(1).max(500),
-  operation: z.enum(['move', 'copy']),
-  unmatchedPolicy: z.enum(['leave', 'move']),
-  unmatchedFolder: z.string().min(1).max(500).nullable()
+const proposedChildDirectorySchema = z
+  .string()
+  .min(1)
+  .max(80)
+  .regex(/^(?:[^./\\]|[^./\\][^/\\]+|\.[^./\\][^/\\]*|\.\.[^/\\][^/\\]*)$/)
+
+export const learnedWorkflowProposalSchema = z.object({
+  capability: z.enum(['organize_files', 'not_yet_supported']),
+  summary: z.string().min(1).max(180),
+  steps: z
+    .array(
+      z.object({
+        label: z.string().min(1).max(80),
+        description: z.string().min(1).max(180)
+      })
+    )
+    .min(1)
+    .max(8),
+  fileOrganization: z
+    .object({
+      sourceHint: z.string().min(1).max(120).nullable(),
+      operation: z.enum(['move', 'copy']),
+      rules: z
+        .array(
+          z.object({
+            id: z.string().regex(/^[a-z][a-z0-9_]{1,39}$/),
+            label: z.string().min(1).max(80),
+            extensions: z
+              .array(z.string().regex(/^\.[a-z0-9]{1,10}$/))
+              .min(1)
+              .max(24),
+            destinationFolder: proposedChildDirectorySchema
+          })
+        )
+        .min(1)
+        .max(20),
+      unmatchedPolicy: z.enum(['leave', 'move']),
+      unmatchedFolder: proposedChildDirectorySchema.nullable()
+    })
+    .nullable()
 })
 
 export const scheduleProposalSchema = z.object({
@@ -82,26 +116,13 @@ export const workflowAnalysisSchema = z.object({
     )
     .max(12),
   uncertainties: z.array(z.string().min(1).max(180)).max(8),
-  mediaRecipe: mediaRecipeSchema.nullable(),
+  learnedWorkflow: learnedWorkflowProposalSchema,
   scheduleProposal: scheduleProposalSchema.nullable(),
-  followUpQuestions: z
-    .array(
-      z.object({
-        id: z.string().regex(/^[a-z][a-z0-9_]{1,39}$/),
-        prompt: z.string().min(1).max(180),
-        reason: z.string().min(1).max(140),
-        answerType: z.enum(['text', 'single_choice', 'boolean']),
-        options: z.array(z.string().min(1).max(100)).max(6)
-      })
-    )
-    .min(0)
-    .max(5),
   risks: z.array(z.string().min(1).max(180)).max(8)
 })
 
 type ParsedWorkflowAnalysis = z.infer<typeof workflowAnalysisSchema>
 
-export type WorkflowAnalysis = Omit<ParsedWorkflowAnalysis, 'mediaRecipe' | 'scheduleProposal'> & {
-  mediaRecipe?: ParsedWorkflowAnalysis['mediaRecipe']
+export type WorkflowAnalysis = Omit<ParsedWorkflowAnalysis, 'scheduleProposal'> & {
   scheduleProposal?: ParsedWorkflowAnalysis['scheduleProposal']
 }

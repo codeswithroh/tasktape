@@ -1216,8 +1216,7 @@ h1 {
 }
 
 .recipe-form > label,
-.recipe-form .destination-fields label,
-.recipe-choice legend {
+.access-section h3 {
   color: var(--text);
   font-size: 11px;
   font-weight: 650;
@@ -1241,66 +1240,6 @@ h1 {
   min-height: 68px;
   resize: vertical;
   line-height: 1.45;
-}
-
-.understanding-summary {
-  margin: 8px 0 2px;
-  padding: 11px 12px;
-  border-left: 2px solid var(--primary);
-  background: var(--surface-subtle);
-}
-
-.understanding-summary > span {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--primary);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.understanding-summary p {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.recipe-advanced {
-  margin-top: 5px;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-}
-
-.recipe-advanced summary {
-  padding: 11px 0;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.recipe-advanced > div {
-  display: grid;
-  gap: 8px;
-  padding: 2px 0 13px;
-}
-
-.recipe-advanced > div > label,
-.recipe-advanced legend {
-  font-size: 11px;
-  font-weight: 650;
-}
-
-.recipe-advanced > div > select {
-  width: 100%;
-  min-height: 42px;
-  padding: 9px 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  background: var(--surface);
-  font: inherit;
-  font-size: 12px;
 }
 
 .recipe-form input:focus,
@@ -1333,66 +1272,120 @@ h1 {
   background: var(--surface-subtle);
 }
 
-.destination-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 6px;
+.learned-actions {
+  margin: 0 0 20px;
 }
 
-.destination-fields > div {
-  display: grid;
-  gap: 8px;
+.learned-actions h3 {
+  margin: 0 0 9px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
-.recipe-choice {
-  margin: 6px 0;
+.learned-actions ol {
+  margin: 0;
   padding: 0;
-  border: 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
 }
 
-.recipe-choice legend {
-  margin-bottom: 8px;
-}
-
-.recipe-choice > div {
+.learned-actions li {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
 }
 
-.recipe-choice label {
-  position: relative;
-}
-
-.recipe-choice input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-
-.recipe-choice span {
+.learned-actions li > span {
   display: grid;
-  min-height: 42px;
+  width: 22px;
+  height: 22px;
   place-items: center;
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--muted);
-  background: var(--surface);
+  border-radius: 50%;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.learned-actions strong {
+  display: block;
+  margin-bottom: 2px;
   font-size: 12px;
 }
 
-.recipe-choice input:checked + span {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: var(--secondary);
+.learned-actions p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
-.recipe-choice input:focus-visible + span,
-.directory-input button:focus-visible {
-  outline: 3px solid rgb(23 107 75 / 18%);
-  outline-offset: 2px;
+.learned-rules {
+  margin: -6px 0 20px;
+  padding: 12px;
+  border-left: 2px solid var(--primary);
+  background: var(--surface-subtle);
+}
+
+.learned-rules h3 {
+  margin: 0 0 7px;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.learned-rules ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.learned-rules li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  font-size: 11px;
+}
+
+.learned-rules li span {
+  color: var(--muted);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.learned-rules > p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.access-section {
+  display: grid;
+  gap: 9px;
+  margin-top: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+}
+
+.access-section h3 {
+  margin: 0;
+}
+
+.access-section > div:first-child p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .recipe-form .record-button {
@@ -1456,8 +1449,9 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-.file-type {
+.action-type {
   min-width: 48px;
+  max-width: 92px;
   padding: 3px 5px;
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -1466,18 +1460,66 @@ h1 {
   font-size: 9px;
   font-weight: 700;
   text-align: center;
-  text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
-.file-type.video {
-  border-color: #b7cbc0;
-  color: var(--primary);
+.capability-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  margin: 20px 0 16px;
+  padding: 13px;
+  border: 1px solid #e5c8bd;
+  border-radius: var(--radius-sm);
+  color: #8d3724;
+  background: #fff8f5;
 }
 
-.file-type.image {
-  border-color: #e7c7b8;
-  color: #8b482e;
-  background: #fff7f2;
+.capability-notice svg {
+  margin-top: 1px;
+}
+
+.capability-notice strong {
+  font-size: 12px;
+}
+
+.capability-notice p {
+  margin: 3px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.unsupported-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.unsupported-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.unsupported-actions .primary-action {
+  border-color: var(--primary);
+  color: white;
+  background: var(--primary);
+}
+
+.unsupported-actions button:focus-visible,
+.directory-input button:focus-visible {
+  outline: 3px solid rgb(23 107 75 / 18%);
+  outline-offset: 2px;
 }
 
 .skipped-files {

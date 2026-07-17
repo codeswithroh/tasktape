@@ -27,7 +27,7 @@ import {
   requestOpenAITranscription,
   transcribeIntent
 } from './analysis.js'
-import { TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
+import { TEST_UNSUPPORTED_WORKFLOW_ANALYSIS, TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
 import {
   clearApiKey,
   type CredentialCipher,
@@ -77,7 +77,7 @@ const selectedCaptureSources = new Map<number, string>()
 const TEST_CAPTURE_THUMBNAIL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
 const TEST_INTENT_TRANSCRIPT =
-  'Organize new videos and images into their project folders every Monday at 9 AM, and leave unmatched files in place.'
+  'Organize new assets using the structure I demonstrated every Monday at 9 AM, and leave anything unmatched in place.'
 const TEST_CAPTURE_SOURCES: CaptureSource[] = [
   {
     id: 'screen:test:0',
@@ -216,7 +216,11 @@ function registerAnalysisIpc(): void {
   ipcMain.handle('analysis:analyze', async (event, input: AnalyzeRecordingInput) => {
     assertTrustedSender(event)
     if (process.env.TASKTAPE_E2E === '1') {
-      return analyzeRecording(input, async () => TEST_WORKFLOW_ANALYSIS)
+      const fixture =
+        process.env.TASKTAPE_E2E_ANALYSIS === 'unsupported'
+          ? TEST_UNSUPPORTED_WORKFLOW_ANALYSIS
+          : TEST_WORKFLOW_ANALYSIS
+      return analyzeRecording(input, async () => fixture)
     }
     const credential = await resolveApiKey(
       app.getPath('userData'),
@@ -254,7 +258,7 @@ function registerWorkflowIpc(): void {
     }
     const owner = BrowserWindow.fromWebContents(event.sender)
     const options: Electron.OpenDialogOptions = {
-      title: 'Choose the media folder',
+      title: 'Choose the folder TaskTape can access',
       properties: ['openDirectory', 'createDirectory']
     }
     const result = owner

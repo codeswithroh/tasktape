@@ -29,8 +29,8 @@ export function IntentCapture({
       <p className="step-label">Step 2 of 3</p>
       <h2 id="recorder-title">Describe the result</h2>
       <p className="intent-intro">
-        Say what should happen next time. Include folder names, exceptions, and whether files should
-        move or copy.
+        Tell TaskTape what you were trying to accomplish. Speak naturally and include anything the
+        recording might not make clear.
       </p>
 
       <label htmlFor="workflow-intent">Your description</label>
@@ -39,7 +39,7 @@ export function IntentCapture({
           id="workflow-intent"
           value={voice.transcript}
           onChange={(event) => voice.setTranscript(event.target.value)}
-          placeholder="For example: Check Downloads every Monday at 9 AM. Move videos into Raw Video, images into Images, and leave everything else alone."
+          placeholder="For example: Follow the same steps each Monday at 9 AM and leave anything unrelated alone."
           rows={6}
           disabled={isListening || isTranscribing}
         />
@@ -100,8 +100,8 @@ export function IntentCapture({
       ) : null}
 
       <p className="intent-privacy">
-        Your voice note is sent for transcription. Its text and selected video frames are then used
-        to understand the workflow.
+        Your voice note is sent for transcription. Its text and selected recording frames help
+        TaskTape understand the workflow.
       </p>
 
       <button

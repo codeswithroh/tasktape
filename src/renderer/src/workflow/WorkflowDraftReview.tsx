@@ -43,10 +43,10 @@ function cleanText(value: string): string {
 function friendlyError(reason: unknown, fallback: string): string {
   const message = reason instanceof Error ? reason.message : ''
   if (message.includes('no longer available') || message.includes('ENOENT')) {
-    return 'That media folder is no longer available. Choose it again.'
+    return 'That folder is no longer available. Choose it again.'
   }
   if (message.includes('single folder name')) {
-    return 'Destination names must be a single folder name without slashes.'
+    return 'One of the learned destinations is not valid. Change the description and try again.'
   }
   return fallback
 }
@@ -62,16 +62,11 @@ export function WorkflowDraftReview({
   onViewHistory
 }: WorkflowDraftReviewProps): React.JSX.Element {
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const [recipe, setRecipe] = useState<SaveWorkflowInput>({
-    name: analysis.title,
-    goal: analysis.goalHypothesis,
-    sourceDirectory: '',
-    videoFolder: analysis.mediaRecipe?.videoFolder ?? 'Videos',
-    imageFolder: analysis.mediaRecipe?.imageFolder ?? 'Images',
-    operation: analysis.mediaRecipe?.operation ?? 'move',
-    unmatchedPolicy: analysis.mediaRecipe?.unmatchedPolicy ?? 'leave',
-    unmatchedFolder: analysis.mediaRecipe?.unmatchedFolder ?? 'Unsorted'
-  })
+  const learned = analysis.learnedWorkflow
+  const organization = learned.fileOrganization
+  const supported = learned.capability === 'organize_files' && organization !== null
+  const [goal, setGoal] = useState(analysis.goalHypothesis)
+  const [sourceDirectory, setSourceDirectory] = useState('')
   const [workflow, setWorkflow] = useState<SavedWorkflow | null>(null)
   const [plan, setPlan] = useState<WorkflowPlan | null>(null)
   const [run, setRun] = useState<WorkflowRun | null>(null)
@@ -94,18 +89,13 @@ export function WorkflowDraftReview({
     heading.parentElement?.scrollIntoView({ block: 'start' })
   }, [plan, run])
 
-  const updateRecipe = <Key extends keyof SaveWorkflowInput>(
-    key: Key,
-    value: SaveWorkflowInput[Key]
-  ): void => {
-    setRecipe((current) => ({ ...current, [key]: value }))
-    setError(null)
-  }
-
   const chooseDirectory = async (): Promise<string | null> => {
     try {
       const directory = await window.tasktape.workflow.chooseDirectory()
-      if (directory) updateRecipe('sourceDirectory', directory)
+      if (directory) {
+        setSourceDirectory(directory)
+        setError(null)
+      }
       return directory
     } catch (reason) {
       setError(friendlyError(reason, 'The folder chooser could not open. Please try again.'))
@@ -114,18 +104,28 @@ export function WorkflowDraftReview({
   }
 
   const saveAndPlan = async (): Promise<void> => {
+    if (!supported || !organization) return
     setError(null)
-    const sourceDirectory = recipe.sourceDirectory || (await chooseDirectory())
-    if (!sourceDirectory) {
-      setError('Choose the media folder before saving this workflow.')
+    const selectedDirectory = sourceDirectory || (await chooseDirectory())
+    if (!selectedDirectory) {
+      setError('Choose the folder this workflow can access before saving.')
       return
     }
+
+    const input: SaveWorkflowInput = {
+      name: analysis.title,
+      goal,
+      capability: 'organize_files',
+      sourceDirectory: selectedDirectory,
+      operation: organization.operation,
+      rules: organization.rules,
+      unmatchedPolicy: organization.unmatchedPolicy,
+      unmatchedFolder: organization.unmatchedFolder
+    }
+
     setBusy('saving')
     try {
-      const saved = await window.tasktape.workflow.save(
-        { ...recipe, sourceDirectory },
-        workflow?.id
-      )
+      const saved = await window.tasktape.workflow.save(input, workflow?.id)
       setWorkflow(saved)
       if (runWhen !== 'manual') {
         setSchedule(
@@ -141,7 +141,7 @@ export function WorkflowDraftReview({
       setPlan(pendingPlan)
       setApproved(false)
     } catch (reason) {
-      setError(friendlyError(reason, 'Could not save this workflow. Check the folder settings.'))
+      setError(friendlyError(reason, 'Could not save this workflow. Check its folder access.'))
     } finally {
       setBusy(null)
     }
@@ -172,7 +172,7 @@ export function WorkflowDraftReview({
       setPlan(pendingPlan)
       setApproved(false)
     } catch (reason) {
-      setError(friendlyError(reason, 'Could not check for new files. Please try again.'))
+      setError(friendlyError(reason, 'Could not check for new work. Please try again.'))
     } finally {
       setBusy(null)
     }
@@ -187,7 +187,7 @@ export function WorkflowDraftReview({
           Run {run.status}
         </p>
         <h2 id="recorder-title" ref={headingRef} tabIndex={-1}>
-          {completed} {completed === 1 ? 'file' : 'files'} updated
+          {completed} {completed === 1 ? 'item' : 'items'} updated
         </h2>
         <p className="intent-intro">The run is complete and saved in your history.</p>
         <ul className="run-results" aria-label="Workflow activity">
@@ -205,7 +205,7 @@ export function WorkflowDraftReview({
         <section className="completion-actions" aria-labelledby="next-step-title">
           <div>
             <h3 id="next-step-title">What would you like to do next?</h3>
-            <p>Check for new files, review past runs, or teach another workflow.</p>
+            <p>Check for new work, review past runs, or teach another workflow.</p>
           </div>
           <div className="completion-action-grid">
             <button
@@ -248,7 +248,7 @@ export function WorkflowDraftReview({
           }}
         >
           <ArrowLeft size={15} />
-          Edit workflow
+          Edit setup
         </button>
         <p className="step-label success-label" role="status">
           <Check size={13} />
@@ -258,8 +258,7 @@ export function WorkflowDraftReview({
           Review and run
         </h2>
         <p className="intent-intro">
-          {plan.actions.length} {plan.actions.length === 1 ? 'file is' : 'files are'} ready to{' '}
-          {workflow.operation}.
+          {plan.actions.length} {plan.actions.length === 1 ? 'change is' : 'changes are'} ready.
         </p>
 
         <div className="goal-summary">
@@ -281,14 +280,14 @@ export function WorkflowDraftReview({
         ) : null}
 
         {plan.actions.length > 0 ? (
-          <ul className="plan-actions" aria-label="Files ready to change">
+          <ul className="plan-actions" aria-label="Changes ready for review">
             {plan.actions.map((action) => (
               <li key={action.id}>
-                <span className={`file-type ${action.category}`}>{action.category}</span>
+                <span className="action-type">{action.category}</span>
                 <div>
                   <strong>{fileName(action.sourcePath)}</strong>
                   <span>
-                    {workflow.operation === 'move' ? 'Move' : 'Copy'} to{' '}
+                    {action.operation === 'move' ? 'Move' : 'Copy'} to{' '}
                     {fileName(action.destinationPath)} in{' '}
                     {fileName(
                       action.destinationPath.slice(0, action.destinationPath.lastIndexOf('/'))
@@ -301,13 +300,13 @@ export function WorkflowDraftReview({
         ) : (
           <div className="empty-plan">
             <Check size={16} />
-            No matching files need to change.
+            Nothing needs to change right now.
           </div>
         )}
 
         {plan.skipped.length > 0 ? (
           <details className="skipped-files">
-            <summary>{plan.skipped.length} files will stay where they are</summary>
+            <summary>{plan.skipped.length} items will stay where they are</summary>
             <ul>
               {plan.skipped.map((item) => (
                 <li key={item.path}>
@@ -326,7 +325,7 @@ export function WorkflowDraftReview({
               checked={approved}
               onChange={(event) => setApproved(event.target.checked)}
             />
-            <span>I reviewed these file changes.</span>
+            <span>I reviewed these changes.</span>
           </label>
         ) : null}
 
@@ -372,20 +371,56 @@ export function WorkflowDraftReview({
     )
   }
 
+  if (!supported) {
+    return (
+      <div className="workflow-draft unsupported-workflow">
+        <button className="back-button" type="button" onClick={onBack}>
+          <ArrowLeft size={15} />
+          Change description
+        </button>
+        <p className="step-label">What TaskTape learned</p>
+        <h2 id="recorder-title" ref={headingRef} tabIndex={-1}>
+          {cleanText(learned.summary)}
+        </h2>
+        <LearnedSteps steps={learned.steps} />
+        <div className="capability-notice" role="status">
+          <AlertCircle size={18} />
+          <div>
+            <strong>This workflow cannot run in this build yet</strong>
+            <p>TaskTape understood the steps, but the required capability is not available.</p>
+          </div>
+        </div>
+        <div className="unsupported-actions">
+          <button className="primary-action" type="button" onClick={onBack}>
+            <ArrowLeft size={16} />
+            Change description
+          </button>
+          <button type="button" onClick={onCreateNew}>
+            <Plus size={16} />
+            New workflow
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="workflow-draft recipe-editor">
       <button className="back-button" type="button" onClick={onBack}>
         <ArrowLeft size={15} />
-        Back to recording
+        Change description
       </button>
       <p className="step-label success-label" role="status">
         <Check size={13} />
         Workflow understood
       </p>
       <h2 id="recorder-title" ref={headingRef} tabIndex={-1}>
-        Set up the workflow
+        What TaskTape learned
       </h2>
-      <p className="intent-intro">Review the result, choose its folder and decide when it runs.</p>
+      <p className="intent-intro">{cleanText(learned.summary)}</p>
+
+      <LearnedSteps steps={learned.steps} />
+      {organization ? <LearnedRules organization={organization} /> : null}
 
       <form
         className="recipe-form"
@@ -397,98 +432,42 @@ export function WorkflowDraftReview({
         <label htmlFor="workflow-goal">Goal</label>
         <textarea
           id="workflow-goal"
-          value={recipe.goal}
-          onChange={(event) => updateRecipe('goal', event.target.value)}
+          value={goal}
+          onChange={(event) => {
+            setGoal(event.target.value)
+            setError(null)
+          }}
           required
           rows={2}
         />
 
-        <label htmlFor="source-directory">Media folder</label>
-        <div className="directory-input">
-          <input
-            id="source-directory"
-            value={recipe.sourceDirectory}
-            placeholder="Choose a folder"
-            readOnly
-            onClick={() => void chooseDirectory()}
-            aria-describedby="source-directory-note"
-          />
-          <button type="button" onClick={() => void chooseDirectory()} title="Choose folder">
-            <FolderOpen size={17} />
-            <span className="sr-only">Choose folder</span>
-          </button>
-        </div>
-        <p className="field-note" id="source-directory-note">
-          TaskTape only accesses the folder you choose here.
-        </p>
-
-        <div className="understanding-summary">
-          <span>TaskTape will</span>
-          <p>
-            {recipe.operation === 'move' ? 'Move' : 'Copy'} videos to{' '}
-            <strong>{recipe.videoFolder}</strong> and images to{' '}
-            <strong>{recipe.imageFolder}</strong>.{' '}
-            {recipe.unmatchedPolicy === 'leave'
-              ? 'Other files stay where they are.'
-              : `Other files go to ${recipe.unmatchedFolder}.`}
-          </p>
-        </div>
-
-        <details className="recipe-advanced">
-          <summary>Review organization rules</summary>
+        <section className="access-section" aria-labelledby="folder-access-title">
           <div>
-            <div className="destination-fields">
-              <div>
-                <label htmlFor="video-folder">Videos go to</label>
-                <input
-                  id="video-folder"
-                  value={recipe.videoFolder}
-                  onChange={(event) => updateRecipe('videoFolder', event.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="image-folder">Images go to</label>
-                <input
-                  id="image-folder"
-                  value={recipe.imageFolder}
-                  onChange={(event) => updateRecipe('imageFolder', event.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <fieldset className="recipe-choice">
-              <legend>File action</legend>
-              <div>
-                {(['move', 'copy'] as const).map((operation) => (
-                  <label key={operation}>
-                    <input
-                      type="radio"
-                      name="operation"
-                      value={operation}
-                      checked={recipe.operation === operation}
-                      onChange={() => updateRecipe('operation', operation)}
-                    />
-                    <span>{operation === 'move' ? 'Move originals' : 'Keep originals'}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <label htmlFor="unmatched-policy">Other files</label>
-            <select
-              id="unmatched-policy"
-              value={recipe.unmatchedPolicy}
-              onChange={(event) =>
-                updateRecipe('unmatchedPolicy', event.target.value as 'leave' | 'move')
-              }
-            >
-              <option value="leave">Leave them where they are</option>
-              <option value="move">Move them to Unsorted</option>
-            </select>
+            <h3 id="folder-access-title">Folder access</h3>
+            <p>
+              Choose the folder this workflow should watch. TaskTape will use the organization it
+              learned automatically.
+            </p>
           </div>
-        </details>
+          <div className="directory-input">
+            <input
+              id="source-directory"
+              aria-label="Folder this workflow can access"
+              value={sourceDirectory}
+              placeholder={organization.sourceHint ?? 'Choose a folder'}
+              readOnly
+              onClick={() => void chooseDirectory()}
+              aria-describedby="source-directory-note"
+            />
+            <button type="button" onClick={() => void chooseDirectory()} title="Choose folder">
+              <FolderOpen size={17} />
+              <span className="sr-only">Choose folder</span>
+            </button>
+          </div>
+          <p className="field-note" id="source-directory-note">
+            TaskTape only accesses the folder you choose.
+          </p>
+        </section>
 
         <section className="schedule-form" aria-labelledby="save-schedule-title">
           <div className="schedule-heading">
@@ -563,6 +542,57 @@ export function WorkflowDraftReview({
           {busy === 'saving' ? 'Saving workflow' : 'Save workflow'}
         </button>
       </form>
+      <p className="sr-only" aria-live="polite">
+        {busy === 'saving' ? 'Saving workflow' : (error ?? '')}
+      </p>
     </div>
+  )
+}
+
+function LearnedRules({
+  organization
+}: {
+  organization: NonNullable<WorkflowAnalysis['learnedWorkflow']['fileOrganization']>
+}): React.JSX.Element {
+  return (
+    <section className="learned-rules" aria-labelledby="learned-rules-title">
+      <h3 id="learned-rules-title">Learned details</h3>
+      <ul>
+        {organization.rules.map((rule) => (
+          <li key={rule.id}>
+            <strong>{cleanText(rule.label)}</strong>
+            <span>{cleanText(rule.destinationFolder)}</span>
+          </li>
+        ))}
+      </ul>
+      <p>
+        {organization.unmatchedPolicy === 'leave'
+          ? 'Anything that does not match stays where it is.'
+          : `Anything else goes to ${organization.unmatchedFolder}.`}
+      </p>
+    </section>
+  )
+}
+
+function LearnedSteps({
+  steps
+}: {
+  steps: WorkflowAnalysis['learnedWorkflow']['steps']
+}): React.JSX.Element {
+  return (
+    <section className="learned-actions" aria-labelledby="learned-actions-title">
+      <h3 id="learned-actions-title">Actions</h3>
+      <ol>
+        {steps.map((step, index) => (
+          <li key={`${step.label}-${index}`}>
+            <span aria-hidden="true">{index + 1}</span>
+            <div>
+              <strong>{cleanText(step.label)}</strong>
+              <p>{cleanText(step.description)}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
   )
 }

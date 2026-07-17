@@ -6,7 +6,7 @@ TaskTape is a desktop automation builder that learns from a recorded demonstrati
 
 ## Current status
 
-TaskTape now completes one real workflow end to end. A user can record a media-organizing routine, type or dictate the intended result, edit the inferred goal, choose a daily or weekly schedule while saving, review exact file changes, and run actual moves or copies with a persisted activity log. Manual and scheduled results appear in Run history.
+TaskTape now completes one real workflow end to end. A user can record a routine, type or dictate the intended result, review what TaskTape learned, edit the inferred goal, choose a daily or weekly schedule, and run actual changes with a persisted activity log. Manual and scheduled results appear in Run history.
 
 A spoken schedule such as "every Monday at 9 AM" prefills the save controls. It never becomes active until the user reviews and saves the workflow. Every saved and completed state includes a clear New workflow action.
 
@@ -16,13 +16,13 @@ Users can add or replace their own OpenAI API key from Settings. App-managed key
 
 The initial release is macOS-first and is being built for OpenAI Build Week. The product vision is broader than the hackathon implementation, but the demo will prove one complete, reliable workflow rather than simulate universal desktop control.
 
-The executable boundary is intentionally specific: TaskTape scans top-level files in one selected folder, recognizes common video and image formats, and organizes them into confirmed destination folders. Unsupported files and name collisions remain unchanged. Scheduled runs require TaskTape to be open. Background launch, history search, rollback, and arbitrary application control are not yet implemented.
+The product input is general, but the first executable capability is intentionally specific: TaskTape can learn extension-based groups and child-folder destinations from the demonstration, then organize top-level files inside one user-approved folder. The user does not configure separate video or image fields. Workflows outside this capability are shown honestly as not yet runnable. Unmatched files and name collisions remain unchanged. Scheduled runs require TaskTape to be open. Background launch, history search, rollback, and arbitrary application control are not yet implemented.
 
 ## Product loop
 
 1. Record a real desktop workflow.
 2. Describe the result by voice or text.
-3. Review the inferred goal, organization rules, and schedule.
+3. Review the inferred goal, learned actions, and schedule.
 4. Save the workflow and review the exact files TaskTape will change.
 5. Run it now or let TaskTape run it on schedule while the app is open.
 6. Inspect the result, run history, or start another workflow.

@@ -7,7 +7,7 @@ const absoluteDirectorySchema = z
   .max(1_024)
   .refine((value) => value.startsWith('/'), 'Choose an absolute folder path.')
 
-const folderNameSchema = z
+export const childDirectoryNameSchema = z
   .string()
   .trim()
   .min(1)
@@ -19,27 +19,88 @@ const folderNameSchema = z
 
 export const workflowIdSchema = z.string().uuid()
 
-export const saveWorkflowInputSchema = z.object({
+export const learnedFileRuleSchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9_]{1,39}$/),
+  label: z.string().trim().min(1).max(80),
+  extensions: z
+    .array(
+      z
+        .string()
+        .trim()
+        .toLowerCase()
+        .regex(/^\.[a-z0-9]{1,10}$/)
+    )
+    .min(1)
+    .max(24),
+  destinationFolder: childDirectoryNameSchema
+})
+
+const saveWorkflowFieldsSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  goal: z.string().trim().min(1).max(240),
+  capability: z.literal('organize_files'),
+  sourceDirectory: absoluteDirectorySchema,
+  operation: z.enum(['move', 'copy']),
+  rules: z.array(learnedFileRuleSchema).min(1).max(20),
+  unmatchedPolicy: z.enum(['leave', 'move']),
+  unmatchedFolder: childDirectoryNameSchema.nullable()
+})
+
+function validateLearnedRules(
+  workflow: z.infer<typeof saveWorkflowFieldsSchema>,
+  context: z.RefinementCtx
+): void {
+  const extensions = new Set<string>()
+  workflow.rules.forEach((rule, ruleIndex) => {
+    rule.extensions.forEach((extension, extensionIndex) => {
+      if (extensions.has(extension)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['rules', ruleIndex, 'extensions', extensionIndex],
+          message: `Only one learned rule can handle ${extension}.`
+        })
+      }
+      extensions.add(extension)
+    })
+  })
+  if (workflow.unmatchedPolicy === 'move' && !workflow.unmatchedFolder) {
+    context.addIssue({
+      code: 'custom',
+      path: ['unmatchedFolder'],
+      message: 'A destination is required for unmatched files.'
+    })
+  }
+}
+
+export const saveWorkflowInputSchema = saveWorkflowFieldsSchema.superRefine(validateLearnedRules)
+
+export const savedWorkflowSchema = saveWorkflowFieldsSchema
+  .extend({
+    version: z.literal(2),
+    id: workflowIdSchema,
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime()
+  })
+  .superRefine(validateLearnedRules)
+
+export const legacySavedWorkflowSchema = z.object({
+  version: z.literal(1),
+  id: workflowIdSchema,
   name: z.string().trim().min(1).max(80),
   goal: z.string().trim().min(1).max(240),
   sourceDirectory: absoluteDirectorySchema,
-  videoFolder: folderNameSchema,
-  imageFolder: folderNameSchema,
+  videoFolder: childDirectoryNameSchema,
+  imageFolder: childDirectoryNameSchema,
   operation: z.enum(['move', 'copy']),
   unmatchedPolicy: z.enum(['leave', 'move']),
-  unmatchedFolder: folderNameSchema
-})
-
-export const savedWorkflowSchema = saveWorkflowInputSchema.extend({
-  version: z.literal(1),
-  id: workflowIdSchema,
+  unmatchedFolder: childDirectoryNameSchema,
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
 })
 
 export const workflowPlanActionSchema = z.object({
   id: z.string().uuid(),
-  category: z.enum(['video', 'image', 'unmatched']),
+  category: z.string().trim().min(1).max(80),
   operation: z.enum(['move', 'copy']),
   sourcePath: z.string().min(1).max(2_048),
   destinationPath: z.string().min(1).max(2_048),
