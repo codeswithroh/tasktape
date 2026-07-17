@@ -50,6 +50,7 @@ The current scheduler runs only while TaskTape is open. Operating-system backgro
 ## Security
 
 - API credentials remain in the main process and are never exposed back to the renderer. Keys entered in Settings are encrypted through Electron `safeStorage`, persisted with mode `0600`, and take precedence over the development-only environment fallback.
+- The main process allows only trusted-renderer display capture and microphone requests. Electron 43 on macOS reports `getDisplayMedia` as a media request with no camera or microphone type, while microphone requests contain only `audio`; camera-bearing requests remain denied.
 - Recordings and extracted frames are ignored by Git and local by default.
 - Manual destructive actions require explicit review and approval. Scheduled runs are limited to the saved folder and collision-safe executor. Rollback is not yet implemented.
 - External links are opened through the operating system after the application denies new in-app windows.

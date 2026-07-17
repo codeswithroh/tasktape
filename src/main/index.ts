@@ -35,6 +35,7 @@ import {
   resolveApiKey,
   saveApiKey
 } from './api-credentials.js'
+import { isAllowedMediaRequest } from './media-permissions.js'
 import { removeRecording, saveRecording } from './recordings.js'
 import {
   createWorkflowPlan,
@@ -55,6 +56,8 @@ if (!app.isPackaged) {
 if (process.env.TASKTAPE_USER_DATA) {
   app.setPath('userData', process.env.TASKTAPE_USER_DATA)
 }
+
+const hasSingleInstanceLock = process.env.TASKTAPE_E2E === '1' || app.requestSingleInstanceLock()
 
 function recordingsRoot(): string {
   return join(app.getPath('userData'), 'recordings')
@@ -185,12 +188,9 @@ function registerRecorderIpc(): void {
 
 function registerMediaPermissions(): void {
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
-    const audioOnly =
-      permission === 'media' &&
-      'mediaTypes' in details &&
-      details.mediaTypes?.length === 1 &&
-      details.mediaTypes[0] === 'audio'
-    callback(isTrustedRendererUrl(contents.getURL()) && audioOnly)
+    const trustedRenderer = isTrustedRendererUrl(contents.getURL())
+    const mediaTypes = 'mediaTypes' in details ? details.mediaTypes : undefined
+    callback(trustedRenderer && isAllowedMediaRequest(permission, mediaTypes))
   })
 }
 
@@ -357,24 +357,36 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
-  registerRecorderIpc()
-  registerAnalysisIpc()
-  registerSettingsIpc()
-  registerWorkflowIpc()
-  registerDisplayCapture()
-  registerMediaPermissions()
-  startWorkflowScheduler()
-  createWindow()
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+if (!hasSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    const window = BrowserWindow.getAllWindows()[0]
+    if (!window) return
+    if (window.isMinimized()) window.restore()
+    window.show()
+    window.focus()
   })
-})
 
-app.on('before-quit', () => {
-  if (schedulerTimer) clearInterval(schedulerTimer)
-})
+  app.whenReady().then(() => {
+    registerRecorderIpc()
+    registerAnalysisIpc()
+    registerSettingsIpc()
+    registerWorkflowIpc()
+    registerDisplayCapture()
+    registerMediaPermissions()
+    startWorkflowScheduler()
+    createWindow()
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  })
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+  app.on('before-quit', () => {
+    if (schedulerTimer) clearInterval(schedulerTimer)
+  })
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
+  })
+}

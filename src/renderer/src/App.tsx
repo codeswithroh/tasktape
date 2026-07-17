@@ -257,7 +257,7 @@ export function App(): React.JSX.Element {
                         <>
                           <p className="step-label">New workflow</p>
                           <h2 id="recorder-title">
-                            {recorder.state === 'error' ? 'Recording interrupted' : 'Show it once'}
+                            {recorder.state === 'error' ? 'Recording not started' : 'Show it once'}
                           </h2>
                           <p>
                             {recorder.error ??

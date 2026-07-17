@@ -31,9 +31,14 @@ interface RecorderController {
   discard: () => Promise<void>
 }
 
-function readableError(error: unknown): string {
+export function readableCaptureError(
+  error: unknown,
+  permissionStatus: ScreenPermissionStatus
+): string {
   if (error instanceof DOMException && error.name === 'NotAllowedError') {
-    return 'Screen recording was cancelled or blocked. Choose a screen or window to continue.'
+    return permissionStatus === 'denied' || permissionStatus === 'restricted'
+      ? 'Screen access is off for TaskTape. Enable it in System Settings, then reopen the app.'
+      : 'Recording did not start. Choose the screen or window again and confirm the share.'
   }
   if (error instanceof Error) return error.message
   return 'TaskTape could not complete the recording.'
@@ -116,15 +121,15 @@ export function useRecorder(): RecorderController {
           setFrameError(null)
         } catch (caught) {
           setFrames([])
-          setFrameError(readableError(caught))
+          setFrameError(readableCaptureError(caught, permissionStatus))
         }
         setState('ready')
       } catch (caught) {
-        setError(readableError(caught))
+        setError(readableCaptureError(caught, permissionStatus))
         setState('error')
       }
     },
-    [clearTimer, stopTracks]
+    [clearTimer, permissionStatus, stopTracks]
   )
 
   const chooseSource = useCallback(
@@ -164,11 +169,18 @@ export function useRecorder(): RecorderController {
         setState('recording')
       } catch (caught) {
         stopTracks()
-        setError(readableError(caught))
+        let currentPermission = permissionStatus
+        try {
+          currentPermission = await window.tasktape.recorder.getPermissionStatus()
+          setPermissionStatus(currentPermission)
+        } catch {
+          // Keep the last known permission state when macOS cannot report it.
+        }
+        setError(readableCaptureError(caught, currentPermission))
         setState('error')
       }
     },
-    [handleStopped, stopTracks]
+    [handleStopped, permissionStatus, stopTracks]
   )
 
   const refreshSources = useCallback(async () => {
@@ -182,10 +194,10 @@ export function useRecorder(): RecorderController {
       }
       setSources(availableSources)
     } catch (caught) {
-      setError(readableError(caught))
+      setError(readableCaptureError(caught, permissionStatus))
       setState('error')
     }
-  }, [])
+  }, [permissionStatus])
 
   const start = useCallback(async () => {
     if (recorderRef.current || state === 'choosing' || state === 'requesting') return
