@@ -108,7 +108,7 @@ Verified result:
 
 Schedule removal, rollback, and history search remain post-hackathon enhancements.
 
-## Milestone 4C: General computer tasks - In progress July 17
+## Milestone 4C: General computer tasks - Complete July 17
 
 Deliverables:
 
@@ -121,9 +121,9 @@ Exit gate:
 
 - Deterministic agent and native-adapter tests pass, the Electron journey proves the complete task lifecycle, and one bounded live desktop task succeeds without an external or destructive action.
 
-Current result:
+Verified result:
 
-- Deterministic and Electron gates pass. The bounded live desktop run is pending secure API-key configuration.
+- Deterministic and Electron gates pass. An opt-in live test activated a disposable local browser page, used OpenAI computer use to click and type the exact verification phrase, confirmed the DOM value, persisted a completed run, and reached Run history in 14.6 seconds.
 
 ## Milestone 5: Product polish and submission - July 19-20
 

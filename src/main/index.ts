@@ -113,10 +113,13 @@ async function runComputerWorkflow(
     return await runComputerAgent({
       task: workflow.instructions,
       harness: createMacOSInputHarness({
-        cacheDir: join(app.getPath('userData'), 'computer-helper'),
         targetApp: workflow.targetApp ?? undefined
       }),
-      provider: (request) => requestOpenAIComputerResponse(request, credential.apiKey ?? undefined)
+      provider: (request) => requestOpenAIComputerResponse(request, credential.apiKey ?? undefined),
+      onProgress:
+        process.env.TASKTAPE_LIVE_COMPUTER === '1'
+          ? (event) => process.stderr.write(`TaskTape computer: ${event}\n`)
+          : undefined
     })
   } finally {
     if (wasVisible) {

@@ -17,6 +17,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:live": "pnpm test:e2e && vitest run --config vitest.live.config.ts",
+    "test:live:computer": "pnpm build && TASKTAPE_LIVE_COMPUTER=1 playwright test --config playwright.live.config.ts",
     "test:watch": "vitest",
     "test:e2e": "pnpm build && playwright test",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
@@ -44,6 +45,7 @@
     }
   },
   "dependencies": {
+    "@nut-tree-fork/nut-js": "4.2.6",
     "dotenv": "17.4.2",
     "lucide-react": "1.24.0",
     "openai": "6.46.0",

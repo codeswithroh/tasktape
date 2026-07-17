@@ -67,6 +67,7 @@ export interface RunComputerAgentOptions {
   harness: ComputerHarness
   provider?: ComputerAgentProvider
   maxTurns?: number
+  onProgress?: (event: string) => void
 }
 
 export interface ComputerAgentResult {
@@ -107,7 +108,7 @@ export async function requestOpenAIComputerResponse(
 ): Promise<ComputerAgentResponse> {
   if (!configuredApiKey) throw new Error('An OpenAI API key is not configured for TaskTape.')
 
-  const client = new OpenAI({ apiKey: configuredApiKey })
+  const client = new OpenAI({ apiKey: configuredApiKey, maxRetries: 1, timeout: 30_000 })
   const response = await client.responses.create(request as ResponseCreateParamsNonStreaming)
   return response as unknown as ComputerAgentResponse
 }
@@ -116,7 +117,8 @@ export async function runComputerAgent({
   task,
   harness,
   provider = requestOpenAIComputerResponse,
-  maxTurns = COMPUTER_AGENT_MAX_TURNS
+  maxTurns = COMPUTER_AGENT_MAX_TURNS,
+  onProgress = () => undefined
 }: RunComputerAgentOptions): Promise<ComputerAgentResult> {
   const prompt = task.trim()
   if (!prompt) throw new Error('A computer task is required.')
@@ -128,9 +130,12 @@ export async function runComputerAgent({
   let input: ComputerAgentRequest['input'] = prompt
   let previousResponseId: string | undefined
 
+  onProgress('activating target')
   await harness.activateTarget?.()
+  onProgress('target active')
 
   for (let turn = 1; turn <= maxTurns; turn += 1) {
+    onProgress(`requesting turn ${turn}`)
     const response = await provider({
       model: COMPUTER_AGENT_MODEL,
       tools: [{ type: 'computer' }],
@@ -138,6 +143,7 @@ export async function runComputerAgent({
       input,
       ...(previousResponseId ? { previous_response_id: previousResponseId } : {})
     })
+    onProgress(`received turn ${turn}`)
     const calls = response.output.filter(
       (item): item is ComputerCall => item.type === 'computer_call'
     )
@@ -162,11 +168,14 @@ export async function runComputerAgent({
     for (const call of calls) {
       const actions = call.actions ?? (call.action ? [call.action] : [])
       for (const action of actions) {
+        onProgress(`executing ${action.type}`)
         await harness.execute(action)
         actionLog.push(describeAction(action))
       }
 
+      onProgress('capturing screen')
       const imageUrl = await harness.captureScreenshot()
+      onProgress('screen captured')
       if (!imageUrl.startsWith('data:image/')) {
         throw new Error('The computer harness returned an invalid screenshot data URL.')
       }

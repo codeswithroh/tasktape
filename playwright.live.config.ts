@@ -2,8 +2,8 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: 'tests/e2e',
-  testIgnore: '**/*.live.spec.ts',
-  timeout: 30_000,
+  testMatch: '**/*.live.spec.ts',
+  timeout: 120_000,
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
@@ -11,5 +11,5 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure'
   },
-  outputDir: 'test-results'
+  outputDir: 'test-results/live'
 })
