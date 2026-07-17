@@ -47,7 +47,7 @@ const proposedChildDirectorySchema = z
   .regex(/^(?:[^./\\]|[^./\\][^/\\]+|\.[^./\\][^/\\]*|\.\.[^/\\][^/\\]*)$/)
 
 export const learnedWorkflowProposalSchema = z.object({
-  capability: z.enum(['organize_files', 'not_yet_supported']),
+  capability: z.enum(['organize_files', 'computer']),
   summary: z.string().min(1).max(180),
   steps: z
     .array(
@@ -79,11 +79,17 @@ export const learnedWorkflowProposalSchema = z.object({
       unmatchedPolicy: z.enum(['leave', 'move']),
       unmatchedFolder: proposedChildDirectorySchema.nullable()
     })
+    .nullable(),
+  computerAutomation: z
+    .object({
+      instructions: z.string().min(1).max(2_000),
+      targetApp: z.string().min(1).max(120).nullable()
+    })
     .nullable()
 })
 
 export const scheduleProposalSchema = z.object({
-  frequency: z.enum(['manual', 'daily', 'weekly']),
+  frequency: z.enum(['manual', 'hourly', 'daily', 'weekdays', 'weekly']),
   time: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)

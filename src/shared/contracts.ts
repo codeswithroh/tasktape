@@ -72,7 +72,10 @@ export interface TaskTapeBridge {
     save: (input: SaveWorkflowInput, existingId?: string) => Promise<SavedWorkflow>
     plan: (workflowId: string) => Promise<WorkflowPlan>
     execute: (input: { workflowId: string; planId: string }) => Promise<WorkflowRun>
+    runTask: (workflowId: string) => Promise<WorkflowRun>
     saveSchedule: (input: SaveScheduleInput) => Promise<WorkflowSchedule>
+    scheduled: () => Promise<ScheduledTask[]>
+    setScheduleEnabled: (input: SetScheduleEnabledInput) => Promise<WorkflowSchedule>
     history: () => Promise<WorkflowHistoryEntry[]>
   }
 }
@@ -86,6 +89,8 @@ import type {
   SaveScheduleInput,
   SavedWorkflow,
   SaveWorkflowInput,
+  ScheduledTask,
+  SetScheduleEnabledInput,
   WorkflowHistoryEntry,
   WorkflowPlan,
   WorkflowRun,

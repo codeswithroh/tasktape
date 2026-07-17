@@ -64,7 +64,8 @@ export const TEST_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
       ],
       unmatchedPolicy: 'leave',
       unmatchedFolder: null
-    }
+    },
+    computerAutomation: null
   },
   scheduleProposal: {
     frequency: 'weekly',
@@ -74,13 +75,13 @@ export const TEST_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
   risks: ['Moving files requires exact change review and explicit approval.']
 }
 
-export const TEST_UNSUPPORTED_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
+export const TEST_COMPUTER_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
   ...TEST_WORKFLOW_ANALYSIS,
   title: 'Publish weekly project update',
   summary: 'The recording shows a project update being reviewed and published in another app.',
   goalHypothesis: 'Review and publish the weekly project update.',
   learnedWorkflow: {
-    capability: 'not_yet_supported',
+    capability: 'computer',
     summary: 'Review the project update and publish it to the team workspace.',
     steps: [
       {
@@ -92,7 +93,12 @@ export const TEST_UNSUPPORTED_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
         description: 'Open the team workspace and publish the approved update.'
       }
     ],
-    fileOrganization: null
+    fileOrganization: null,
+    computerAutomation: {
+      instructions:
+        'Open the team workspace, review the drafted weekly project update, and publish it after confirming the content is accurate.',
+      targetApp: 'Browser'
+    }
   },
   scheduleProposal: null,
   risks: ['Publishing content is externally visible and requires explicit approval.']

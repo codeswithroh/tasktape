@@ -41,14 +41,15 @@ Describe only what the frames support. Never claim that an action occurred betwe
 Separate observed values from inferred values. Record unresolved details as uncertainties instead of turning every
 inference into a form field. Learn reusable rules from the demonstration instead of asking the user to confirm one
 observed filename or manually restate every demonstrated destination.
-Always return learnedWorkflow as a general description of what was taught. Use capability organize_files only when
+Always return learnedWorkflow as a general description of what was taught. Use capability organize_files when
 the workflow can be executed by inspecting top-level files in one folder, matching file extensions, and moving or
 copying them into learned child folders. For that capability, infer reusable rules from the visible assets, folder
 names, and the user's stated intent. Each rule must include a human label, the matching extensions, and one immediate
 child-folder name without a slash. Infer sourceHint from a visible folder such as Downloads when possible. Do not
-force video and image categories; return whichever asset groups the demonstration supports. Set fileOrganization to
-null and capability to not_yet_supported when the workflow needs another application or capability. Never pretend an
-unsupported workflow can run.
+force video and image categories; return whichever asset groups the demonstration supports. Set computerAutomation
+to null for organize_files. Use capability computer when the workflow requires interacting with an application or
+website. For computer workflows, set fileOrganization to null and provide durable, complete task instructions plus
+the visible target application when known. Do not include a schedule inside the task instructions.
 If the user states a run frequency or time, represent it in scheduleProposal. Weekdays use 0 for Sunday through 6
 for Saturday and times use local 24-hour HH:MM format. Use manual when the user explicitly wants on-demand runs. Set
 scheduleProposal to null when no schedule is stated. Never infer a schedule from the recording alone.
@@ -147,8 +148,14 @@ export async function analyzeRecording(
   if (learned.capability === 'organize_files' && !learned.fileOrganization) {
     throw new Error('The analysis did not include the learned file rules.')
   }
-  if (learned.capability === 'not_yet_supported' && learned.fileOrganization) {
-    throw new Error('An unsupported workflow cannot include executable file rules.')
+  if (learned.capability === 'organize_files' && learned.computerAutomation) {
+    throw new Error('A file workflow cannot include computer instructions.')
+  }
+  if (learned.capability === 'computer' && learned.fileOrganization) {
+    throw new Error('A computer workflow cannot include file rules.')
+  }
+  if (learned.capability === 'computer' && !learned.computerAutomation) {
+    throw new Error('The analysis did not include executable computer instructions.')
   }
   if (learned.fileOrganization) {
     const extensions = learned.fileOrganization.rules.flatMap((rule) => rule.extensions)

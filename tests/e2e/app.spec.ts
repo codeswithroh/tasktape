@@ -121,7 +121,7 @@ test('learns, saves, and runs a demonstrated asset workflow', async () => {
     await expect(learnedHeading).toBeFocused()
     const playbackBox = await page.getByTestId('recording-preview').boundingBox()
     expect(playbackBox?.width).toBeGreaterThan(300)
-    await expect(page.getByText('Workflow understood', { exact: true })).toBeVisible()
+    await expect(page.getByText('Task understood', { exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'What TaskTape learned' })).toBeVisible()
     await expect(page.getByText('Notice new assets', { exact: true })).toBeVisible()
     await expect(page.getByText('Project footage', { exact: true })).toBeVisible()
@@ -139,11 +139,14 @@ test('learns, saves, and runs a demonstrated asset workflow', async () => {
     await page.getByLabel('Every week').check()
     await page.getByLabel('Day', { exact: true }).selectOption('1')
     await page.getByLabel('Time', { exact: true }).fill('09:00')
+    await page
+      .getByLabel('Allow TaskTape to run this task automatically at the scheduled time.')
+      .check()
     await page.screenshot({ path: 'output/playwright/workflow-recipe-editor.png' })
-    await page.getByRole('button', { name: 'Save workflow' }).click()
+    await page.getByRole('button', { name: 'Save task' }).click()
 
     await expect(page.getByRole('heading', { name: 'Review and run' })).toBeVisible()
-    await expect(page.getByText('Workflow saved', { exact: true })).toBeVisible()
+    await expect(page.getByText('Task saved', { exact: true })).toBeVisible()
 
     const workflowIds = await readdir(join(userData, 'workflows'))
     expect(workflowIds).toHaveLength(1)
@@ -159,11 +162,11 @@ test('learns, saves, and runs a demonstrated asset workflow', async () => {
     await expect(page.getByText(editedGoal, { exact: true })).toBeVisible()
     await expect(page.getByText('launch.mp4', { exact: true })).toBeVisible()
     await expect(page.getByText('thumbnail.png', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Run workflow' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Run task' })).toBeDisabled()
     await page.getByLabel('I reviewed these changes.').check()
-    await expect(page.getByRole('button', { name: 'Run workflow' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Run task' })).toBeEnabled()
     await page.screenshot({ path: 'output/playwright/workflow-run-approval.png' })
-    await page.getByRole('button', { name: 'Run workflow' }).click()
+    await page.getByRole('button', { name: 'Run task' }).click()
 
     await expect(page.getByRole('heading', { name: '3 items updated' })).toBeVisible()
     await expect(page.getByText('Run completed', { exact: true })).toBeVisible()
@@ -206,16 +209,16 @@ test('learns, saves, and runs a demonstrated asset workflow', async () => {
     await expect(page.getByRole('heading', { name: 'Run history' })).toBeVisible()
     await expect(page.getByText('Organize project assets', { exact: true })).toHaveCount(2)
     await expect(page.getByText('Manual', { exact: true })).toBeVisible()
-    await expect(page.getByText('Scheduled', { exact: true })).toBeVisible()
+    await expect(
+      page.getByLabel('Workflow runs').getByText('Scheduled', { exact: true })
+    ).toBeVisible()
     await expect(page.getByText('3 updated', { exact: true })).toBeVisible()
     await expect(page.getByText('1 updated', { exact: true })).toBeVisible()
     await page.screenshot({ path: 'output/playwright/run-history.png' })
 
     await page.getByRole('button', { name: 'Workflows' }).click()
     await expect(page.getByRole('heading', { name: '3 items updated' })).toBeVisible()
-    const newWorkflowButton = page
-      .locator('.run-result')
-      .getByRole('button', { name: 'New workflow' })
+    const newWorkflowButton = page.locator('.run-result').getByRole('button', { name: 'New task' })
     await page.locator('.workspace').evaluate((element) => element.scrollTo({ top: 0 }))
     await newWorkflowButton.scrollIntoViewIfNeeded()
     await expect(newWorkflowButton).toBeVisible()
@@ -248,14 +251,13 @@ test('keeps an empty saved workflow actionable', async () => {
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
     ).toBe(true)
     await page.getByRole('button', { name: 'Choose folder' }).click()
-    await page.getByRole('button', { name: 'Save workflow' }).click()
+    await page.getByLabel('On demand').check()
+    await page.getByRole('button', { name: 'Save task' }).click()
 
     await expect(page.getByRole('heading', { name: 'Review and run' })).toBeVisible()
     await expect(page.getByText('Nothing needs to change right now.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Check again' })).toBeEnabled()
-    const newWorkflowButton = page
-      .locator('.plan-review')
-      .getByRole('button', { name: 'New workflow' })
+    const newWorkflowButton = page.locator('.plan-review').getByRole('button', { name: 'New task' })
     await expect(newWorkflowButton).toBeEnabled()
     await page.screenshot({ path: 'output/playwright/empty-workflow-saved.png' })
     await newWorkflowButton.click()
@@ -267,9 +269,9 @@ test('keeps an empty saved workflow actionable', async () => {
   }
 })
 
-test('shows an understood workflow honestly when its capability is unavailable', async () => {
+test('saves and runs a learned computer task', async () => {
   const { application, userData } = await launchTestApp({
-    TASKTAPE_E2E_ANALYSIS: 'unsupported'
+    TASKTAPE_E2E_ANALYSIS: 'computer'
   })
 
   try {
@@ -286,13 +288,45 @@ test('shows an understood workflow honestly when its capability is unavailable',
     await expect(page.getByText('What TaskTape learned', { exact: true })).toBeVisible()
     await expect(page.getByText('Review the update', { exact: true })).toBeVisible()
     await expect(page.getByText('Publish to the workspace', { exact: true })).toBeVisible()
-    await expect(page.getByText('This workflow cannot run in this build yet')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Save workflow' })).toHaveCount(0)
+    await expect(page.getByText('Computer access', { exact: true })).toBeVisible()
+    await expect(page.getByLabel('Task instructions')).toHaveValue(/team workspace/)
     await expect(page.getByText('Folder access', { exact: true })).toHaveCount(0)
-    await expect(
-      page.locator('.unsupported-actions').getByRole('button', { name: 'New workflow' })
-    ).toBeEnabled()
-    await page.screenshot({ path: 'output/playwright/unsupported-workflow.png' })
+    await page.getByLabel('Every week').check()
+    await page.getByLabel('Day', { exact: true }).selectOption('1')
+    await page.getByLabel('Time', { exact: true }).fill('09:00')
+    await page
+      .getByLabel('Allow TaskTape to run this task automatically at the scheduled time.')
+      .check()
+    await page.getByRole('button', { name: 'Save task' }).click()
+
+    await expect(page.getByText('Task saved', { exact: true })).toBeVisible()
+    await expect(page.getByText('Starts in Browser', { exact: true })).toBeVisible()
+    await page.getByLabel('I reviewed the task instructions.').check()
+    await page.getByRole('button', { name: 'Run task' }).click()
+    await expect(page.getByText('Run completed', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '1 item updated' })).toBeVisible()
+    await page.screenshot({ path: 'output/playwright/computer-task-complete.png' })
+
+    await page.getByRole('button', { name: 'Scheduled' }).click()
+    await expect(page.getByRole('heading', { name: 'Scheduled', exact: true })).toBeVisible()
+    await expect(page.getByText('Publish weekly project update', { exact: true })).toBeVisible()
+    await expect(page.getByText('Every Monday at 9:00 AM', { exact: true })).toBeVisible()
+    const pauseSwitch = page.getByRole('switch', { name: 'Pause Publish weekly project update' })
+    await pauseSwitch.focus()
+    await pauseSwitch.press('Space')
+    await expect(page.getByText('Paused', { exact: true }).first()).toBeVisible()
+    const resumeSwitch = page.getByRole('switch', { name: 'Resume Publish weekly project update' })
+    await resumeSwitch.focus()
+    await resumeSwitch.press('Space')
+    await expect(page.getByText('Active', { exact: true })).toBeVisible()
+    await page.addStyleTag({
+      content: '*, *::before, *::after { animation: none !important; transition: none !important; }'
+    })
+    await page.waitForTimeout(100)
+    await page.screenshot({ path: 'output/playwright/scheduled-tasks.png' })
+    await page.getByRole('button', { name: 'Run now' }).click()
+    await expect(page.getByRole('heading', { name: 'Run history' })).toBeVisible()
+    await expect(page.getByText('Publish weekly project update', { exact: true })).toHaveCount(2)
   } finally {
     await application.close()
     await rm(userData, { recursive: true, force: true })
@@ -308,9 +342,10 @@ test('keeps natural folder answers out of execution and handles chooser cancella
     const page = await application.firstWindow()
     await reachRecipeEditor(page)
     await expect(page.getByLabel('Folder this workflow can access')).toHaveValue('')
-    await page.getByRole('button', { name: 'Save workflow' }).click()
+    await page.getByLabel('On demand').check()
+    await page.getByRole('button', { name: 'Save task' }).click()
     await expect(page.getByRole('alert')).toHaveText(
-      'Choose the folder this workflow can access before saving.'
+      'Choose the folder this task can access before saving.'
     )
     const visibleText = await page.locator('.recipe-editor').innerText()
     expect(visibleText).not.toContain('Error invoking remote method')

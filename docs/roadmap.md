@@ -100,12 +100,30 @@ Exit gate:
 
 Verified result:
 
-- Daily and weekly schedules persist locally and resume checking when TaskTape opens.
+- Hourly, daily, weekday, and weekly schedules persist locally and resume checking when TaskTape opens.
 - Scheduling is reviewed and saved with the workflow; spoken timing prefills the controls.
+- The Scheduled inbox shows cadence, next run, last result, pause or resume, and Run now.
 - A packaged Electron test forces a schedule due, moves a new asset fixture, and shows separate manual and scheduled history entries.
 - Fresh plans, exclusive destination creation, and collision skipping protect reruns from overwriting prior results.
 
-Schedule pause or removal controls, rollback, and history search remain post-hackathon enhancements.
+Schedule removal, rollback, and history search remain post-hackathon enhancements.
+
+## Milestone 4C: General computer tasks - In progress July 17
+
+Deliverables:
+
+- OpenAI computer-use execution for tasks that need an application or website.
+- Native macOS screenshot, mouse, keyboard, scroll, and application-activation adapter.
+- Turn limits, validated actions, untrusted-screen instructions, and safety-check stopping.
+- The same save, run, schedule, and history lifecycle as deterministic tasks.
+
+Exit gate:
+
+- Deterministic agent and native-adapter tests pass, the Electron journey proves the complete task lifecycle, and one bounded live desktop task succeeds without an external or destructive action.
+
+Current result:
+
+- Deterministic and Electron gates pass. The bounded live desktop run is pending secure API-key configuration.
 
 ## Milestone 5: Product polish and submission - July 19-20
 

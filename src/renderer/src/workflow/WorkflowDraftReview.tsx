@@ -64,14 +64,18 @@ export function WorkflowDraftReview({
   const headingRef = useRef<HTMLHeadingElement>(null)
   const learned = analysis.learnedWorkflow
   const organization = learned.fileOrganization
-  const supported = learned.capability === 'organize_files' && organization !== null
+  const computerAutomation = learned.computerAutomation
+  const isComputerTask = learned.capability === 'computer'
   const [goal, setGoal] = useState(analysis.goalHypothesis)
+  const [instructions, setInstructions] = useState(
+    computerAutomation?.instructions ?? analysis.goalHypothesis
+  )
   const [sourceDirectory, setSourceDirectory] = useState('')
   const [workflow, setWorkflow] = useState<SavedWorkflow | null>(null)
   const [plan, setPlan] = useState<WorkflowPlan | null>(null)
   const [run, setRun] = useState<WorkflowRun | null>(null)
   const [schedule, setSchedule] = useState<WorkflowSchedule | null>(null)
-  const [runWhen, setRunWhen] = useState<'manual' | 'daily' | 'weekly'>(
+  const [runWhen, setRunWhen] = useState<'manual' | 'hourly' | 'daily' | 'weekdays' | 'weekly'>(
     analysis.scheduleProposal?.frequency ?? 'manual'
   )
   const [scheduleTime, setScheduleTime] = useState(
@@ -79,6 +83,7 @@ export function WorkflowDraftReview({
   )
   const [weekday, setWeekday] = useState(analysis.scheduleProposal?.weekday ?? new Date().getDay())
   const [approved, setApproved] = useState(false)
+  const [allowScheduledRuns, setAllowScheduledRuns] = useState(false)
   const [busy, setBusy] = useState<'saving' | 'running' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -104,23 +109,47 @@ export function WorkflowDraftReview({
   }
 
   const saveAndPlan = async (): Promise<void> => {
-    if (!supported || !organization) return
     setError(null)
-    const selectedDirectory = sourceDirectory || (await chooseDirectory())
-    if (!selectedDirectory) {
-      setError('Choose the folder this workflow can access before saving.')
+    if (runWhen !== 'manual' && !allowScheduledRuns) {
+      setError('Confirm that TaskTape can run this task on the schedule you chose.')
       return
     }
-
-    const input: SaveWorkflowInput = {
-      name: analysis.title,
-      goal,
-      capability: 'organize_files',
-      sourceDirectory: selectedDirectory,
-      operation: organization.operation,
-      rules: organization.rules,
-      unmatchedPolicy: organization.unmatchedPolicy,
-      unmatchedFolder: organization.unmatchedFolder
+    let input: SaveWorkflowInput
+    if (isComputerTask) {
+      if (!computerAutomation) {
+        setError('TaskTape needs complete computer instructions before saving.')
+        return
+      }
+      input = {
+        name: analysis.title,
+        goal,
+        instructions,
+        approvalMode: runWhen === 'manual' ? 'review_each_run' : 'allow_unattended',
+        capability: 'computer',
+        targetApp: computerAutomation.targetApp
+      }
+    } else {
+      if (!organization) {
+        setError('TaskTape needs complete file instructions before saving.')
+        return
+      }
+      const selectedDirectory = sourceDirectory || (await chooseDirectory())
+      if (!selectedDirectory) {
+        setError('Choose the folder this task can access before saving.')
+        return
+      }
+      input = {
+        name: analysis.title,
+        goal,
+        instructions,
+        approvalMode: runWhen === 'manual' ? 'review_each_run' : 'allow_unattended',
+        capability: 'organize_files',
+        sourceDirectory: selectedDirectory,
+        operation: organization.operation,
+        rules: organization.rules,
+        unmatchedPolicy: organization.unmatchedPolicy,
+        unmatchedFolder: organization.unmatchedFolder
+      }
     }
 
     setBusy('saving')
@@ -132,27 +161,31 @@ export function WorkflowDraftReview({
           await window.tasktape.workflow.saveSchedule({
             workflowId: saved.id,
             frequency: runWhen,
-            time: scheduleTime,
+            time: runWhen === 'hourly' ? null : scheduleTime,
             weekday: runWhen === 'weekly' ? weekday : null
           })
         )
       }
-      const pendingPlan = await window.tasktape.workflow.plan(saved.id)
-      setPlan(pendingPlan)
+      setPlan(isComputerTask ? null : await window.tasktape.workflow.plan(saved.id))
       setApproved(false)
     } catch (reason) {
-      setError(friendlyError(reason, 'Could not save this workflow. Check its folder access.'))
+      setError(friendlyError(reason, 'Could not save this task. Check its access and try again.'))
     } finally {
       setBusy(null)
     }
   }
 
   const execute = async (): Promise<void> => {
-    if (!workflow || !plan || !approved || plan.actions.length === 0) return
+    if (!workflow || !approved) return
+    if (workflow.capability === 'organize_files' && (!plan || plan.actions.length === 0)) return
     setBusy('running')
     setError(null)
     try {
-      setRun(await window.tasktape.workflow.execute({ workflowId: workflow.id, planId: plan.id }))
+      setRun(
+        workflow.capability === 'computer'
+          ? await window.tasktape.workflow.runTask(workflow.id)
+          : await window.tasktape.workflow.execute({ workflowId: workflow.id, planId: plan!.id })
+      )
     } catch (reason) {
       setError(
         friendlyError(reason, 'The workflow could not run. No unreported changes were made.')
@@ -167,9 +200,12 @@ export function WorkflowDraftReview({
     setBusy('running')
     setError(null)
     try {
-      const pendingPlan = await window.tasktape.workflow.plan(workflow.id)
       setRun(null)
-      setPlan(pendingPlan)
+      setPlan(
+        workflow.capability === 'organize_files'
+          ? await window.tasktape.workflow.plan(workflow.id)
+          : null
+      )
       setApproved(false)
     } catch (reason) {
       setError(friendlyError(reason, 'Could not check for new work. Please try again.'))
@@ -227,7 +263,7 @@ export function WorkflowDraftReview({
             </button>
             <button type="button" onClick={onCreateNew}>
               <Plus size={16} />
-              New workflow
+              New task
             </button>
           </div>
         </section>
@@ -235,7 +271,8 @@ export function WorkflowDraftReview({
     )
   }
 
-  if (workflow && plan) {
+  if (workflow && (workflow.capability === 'computer' || plan)) {
+    const actionCount = plan?.actions.length ?? 0
     return (
       <div className="workflow-draft plan-review">
         <button
@@ -252,19 +289,29 @@ export function WorkflowDraftReview({
         </button>
         <p className="step-label success-label" role="status">
           <Check size={13} />
-          Workflow saved
+          Task saved
         </p>
         <h2 id="recorder-title" ref={headingRef} tabIndex={-1}>
           Review and run
         </h2>
         <p className="intent-intro">
-          {plan.actions.length} {plan.actions.length === 1 ? 'change is' : 'changes are'} ready.
+          {workflow.capability === 'computer'
+            ? 'TaskTape will follow these instructions using your Mac.'
+            : `${actionCount} ${actionCount === 1 ? 'change is' : 'changes are'} ready.`}
         </p>
 
         <div className="goal-summary">
           <span>Goal</span>
           <p>{cleanText(workflow.goal)}</p>
         </div>
+
+        {workflow.capability === 'computer' ? (
+          <div className="task-instructions-summary">
+            <span>Task instructions</span>
+            <p>{cleanText(workflow.instructions)}</p>
+            {workflow.targetApp ? <small>Starts in {cleanText(workflow.targetApp)}</small> : null}
+          </div>
+        ) : null}
 
         {schedule ? (
           <div className="saved-schedule">
@@ -279,7 +326,7 @@ export function WorkflowDraftReview({
           </div>
         ) : null}
 
-        {plan.actions.length > 0 ? (
+        {plan && plan.actions.length > 0 ? (
           <ul className="plan-actions" aria-label="Changes ready for review">
             {plan.actions.map((action) => (
               <li key={action.id}>
@@ -297,14 +344,14 @@ export function WorkflowDraftReview({
               </li>
             ))}
           </ul>
-        ) : (
+        ) : workflow.capability === 'organize_files' ? (
           <div className="empty-plan">
             <Check size={16} />
             Nothing needs to change right now.
           </div>
-        )}
+        ) : null}
 
-        {plan.skipped.length > 0 ? (
+        {plan && plan.skipped.length > 0 ? (
           <details className="skipped-files">
             <summary>{plan.skipped.length} items will stay where they are</summary>
             <ul>
@@ -318,14 +365,18 @@ export function WorkflowDraftReview({
           </details>
         ) : null}
 
-        {plan.actions.length > 0 ? (
+        {workflow.capability === 'computer' || actionCount > 0 ? (
           <label className="approval-check">
             <input
               type="checkbox"
               checked={approved}
               onChange={(event) => setApproved(event.target.checked)}
             />
-            <span>I reviewed these changes.</span>
+            <span>
+              {workflow.capability === 'computer'
+                ? 'I reviewed the task instructions.'
+                : 'I reviewed these changes.'}
+            </span>
           </label>
         ) : null}
 
@@ -334,7 +385,7 @@ export function WorkflowDraftReview({
             {error}
           </p>
         ) : null}
-        {plan.actions.length > 0 ? (
+        {workflow.capability === 'computer' || actionCount > 0 ? (
           <button
             className="record-button run-workflow-button"
             type="button"
@@ -346,7 +397,7 @@ export function WorkflowDraftReview({
             ) : (
               <Play size={17} />
             )}
-            {busy === 'running' ? 'Running workflow' : 'Run workflow'}
+            {busy === 'running' ? 'Running task' : 'Run task'}
           </button>
         ) : (
           <button
@@ -365,41 +416,8 @@ export function WorkflowDraftReview({
         )}
         <button className="new-workflow-button" type="button" onClick={onCreateNew}>
           <Plus size={16} />
-          New workflow
+          New task
         </button>
-      </div>
-    )
-  }
-
-  if (!supported) {
-    return (
-      <div className="workflow-draft unsupported-workflow">
-        <button className="back-button" type="button" onClick={onBack}>
-          <ArrowLeft size={15} />
-          Change description
-        </button>
-        <p className="step-label">What TaskTape learned</p>
-        <h2 id="recorder-title" ref={headingRef} tabIndex={-1}>
-          {cleanText(learned.summary)}
-        </h2>
-        <LearnedSteps steps={learned.steps} />
-        <div className="capability-notice" role="status">
-          <AlertCircle size={18} />
-          <div>
-            <strong>This workflow cannot run in this build yet</strong>
-            <p>TaskTape understood the steps, but the required capability is not available.</p>
-          </div>
-        </div>
-        <div className="unsupported-actions">
-          <button className="primary-action" type="button" onClick={onBack}>
-            <ArrowLeft size={16} />
-            Change description
-          </button>
-          <button type="button" onClick={onCreateNew}>
-            <Plus size={16} />
-            New workflow
-          </button>
-        </div>
       </div>
     )
   }
@@ -412,7 +430,7 @@ export function WorkflowDraftReview({
       </button>
       <p className="step-label success-label" role="status">
         <Check size={13} />
-        Workflow understood
+        Task understood
       </p>
       <h2 id="recorder-title" ref={headingRef} tabIndex={-1}>
         What TaskTape learned
@@ -441,46 +459,73 @@ export function WorkflowDraftReview({
           rows={2}
         />
 
-        <section className="access-section" aria-labelledby="folder-access-title">
-          <div>
-            <h3 id="folder-access-title">Folder access</h3>
-            <p>
-              Choose the folder this workflow should watch. TaskTape will use the organization it
-              learned automatically.
+        <label htmlFor="task-instructions">Task instructions</label>
+        <textarea
+          id="task-instructions"
+          value={instructions}
+          onChange={(event) => {
+            setInstructions(event.target.value)
+            setError(null)
+          }}
+          required
+          rows={4}
+        />
+
+        {!isComputerTask && organization ? (
+          <section className="access-section" aria-labelledby="folder-access-title">
+            <div>
+              <h3 id="folder-access-title">Folder access</h3>
+              <p>
+                Choose the folder this task should watch. TaskTape will use the organization it
+                learned automatically.
+              </p>
+            </div>
+            <div className="directory-input">
+              <input
+                id="source-directory"
+                aria-label="Folder this workflow can access"
+                value={sourceDirectory}
+                placeholder={organization.sourceHint ?? 'Choose a folder'}
+                readOnly
+                onClick={() => void chooseDirectory()}
+                aria-describedby="source-directory-note"
+              />
+              <button type="button" onClick={() => void chooseDirectory()} title="Choose folder">
+                <FolderOpen size={17} />
+                <span className="sr-only">Choose folder</span>
+              </button>
+            </div>
+            <p className="field-note" id="source-directory-note">
+              This task only accesses the folder you choose.
             </p>
-          </div>
-          <div className="directory-input">
-            <input
-              id="source-directory"
-              aria-label="Folder this workflow can access"
-              value={sourceDirectory}
-              placeholder={organization.sourceHint ?? 'Choose a folder'}
-              readOnly
-              onClick={() => void chooseDirectory()}
-              aria-describedby="source-directory-note"
-            />
-            <button type="button" onClick={() => void chooseDirectory()} title="Choose folder">
-              <FolderOpen size={17} />
-              <span className="sr-only">Choose folder</span>
-            </button>
-          </div>
-          <p className="field-note" id="source-directory-note">
-            TaskTape only accesses the folder you choose.
-          </p>
-        </section>
+          </section>
+        ) : (
+          <section className="access-section" aria-labelledby="computer-access-title">
+            <div>
+              <h3 id="computer-access-title">Computer access</h3>
+              <p>
+                TaskTape will use the screen and accessibility permissions already granted on this
+                Mac.
+              </p>
+            </div>
+            {computerAutomation?.targetApp ? (
+              <p className="computer-target">Starts in {cleanText(computerAutomation.targetApp)}</p>
+            ) : null}
+          </section>
+        )}
 
         <section className="schedule-form" aria-labelledby="save-schedule-title">
           <div className="schedule-heading">
             <CalendarClock size={18} />
             <div>
               <h3 id="save-schedule-title">When should it run?</h3>
-              <p>Scheduled runs happen while TaskTape is open.</p>
+              <p>Local schedules run while this Mac is awake and TaskTape is open.</p>
             </div>
           </div>
           <fieldset className="schedule-frequency save-frequency">
             <legend className="sr-only">Run frequency</legend>
             <div>
-              {(['manual', 'daily', 'weekly'] as const).map((option) => (
+              {(['manual', 'hourly', 'daily', 'weekdays', 'weekly'] as const).map((option) => (
                 <label key={option}>
                   <input
                     type="radio"
@@ -492,15 +537,19 @@ export function WorkflowDraftReview({
                   <span>
                     {option === 'manual'
                       ? 'On demand'
-                      : option === 'daily'
-                        ? 'Every day'
-                        : 'Every week'}
+                      : option === 'hourly'
+                        ? 'Hourly'
+                        : option === 'daily'
+                          ? 'Every day'
+                          : option === 'weekdays'
+                            ? 'Weekdays'
+                            : 'Every week'}
                   </span>
                 </label>
               ))}
             </div>
           </fieldset>
-          {runWhen !== 'manual' ? (
+          {runWhen !== 'manual' && runWhen !== 'hourly' ? (
             <div className={`schedule-fields ${runWhen === 'daily' ? 'daily' : ''}`}>
               {runWhen === 'weekly' ? (
                 <div>
@@ -530,6 +579,19 @@ export function WorkflowDraftReview({
               </div>
             </div>
           ) : null}
+          {runWhen !== 'manual' ? (
+            <label className="approval-check schedule-approval">
+              <input
+                type="checkbox"
+                checked={allowScheduledRuns}
+                onChange={(event) => {
+                  setAllowScheduledRuns(event.target.checked)
+                  setError(null)
+                }}
+              />
+              <span>Allow TaskTape to run this task automatically at the scheduled time.</span>
+            </label>
+          ) : null}
         </section>
 
         {error ? (
@@ -539,11 +601,11 @@ export function WorkflowDraftReview({
         ) : null}
         <button className="record-button" type="submit" disabled={busy === 'saving'}>
           {busy === 'saving' ? <LoaderCircle className="spinner" size={17} /> : <Save size={17} />}
-          {busy === 'saving' ? 'Saving workflow' : 'Save workflow'}
+          {busy === 'saving' ? 'Saving task' : 'Save task'}
         </button>
       </form>
       <p className="sr-only" aria-live="polite">
-        {busy === 'saving' ? 'Saving workflow' : (error ?? '')}
+        {busy === 'saving' ? 'Saving task' : (error ?? '')}
       </p>
     </div>
   )

@@ -9,11 +9,13 @@ import type { SaveWorkflowInput } from '../shared/workflow-schema.js'
 import {
   createWorkflowPlan,
   executeWorkflowPlan,
+  listScheduledTasks,
   listWorkflowHistory,
   nextScheduleTime,
   runDueSchedules,
   saveWorkflow,
-  saveWorkflowSchedule
+  saveWorkflowSchedule,
+  setWorkflowScheduleEnabled
 } from './workflows.js'
 
 const roots: string[] = []
@@ -21,7 +23,7 @@ const roots: string[] = []
 async function fixture(operation: 'move' | 'copy' = 'move'): Promise<{
   root: string
   source: string
-  input: SaveWorkflowInput
+  input: Extract<SaveWorkflowInput, { capability: 'organize_files' }>
 }> {
   const root = await mkdtemp(join(tmpdir(), 'tasktape-workflow-'))
   roots.push(root)
@@ -37,6 +39,8 @@ async function fixture(operation: 'move' | 'copy' = 'move'): Promise<{
     input: {
       name: 'Organize project assets',
       goal: 'Sort incoming assets by their learned file groups.',
+      instructions: 'Sort incoming assets by the demonstrated file groups.',
+      approvalMode: 'allow_unattended',
       capability: 'organize_files',
       sourceDirectory: source,
       operation,
@@ -70,7 +74,7 @@ describe('workflow persistence and execution', () => {
     const workflow = await saveWorkflow(setup.root, setup.input)
     const plan = await createWorkflowPlan(setup.root, workflow.id)
 
-    expect(workflow.version).toBe(2)
+    expect(workflow.version).toBe(3)
     expect(plan.actions.map((action) => action.category)).toEqual([
       'Archives',
       'Project documents',
@@ -181,15 +185,27 @@ describe('workflow persistence and execution', () => {
     await expect(readdir(setup.root)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it('calculates the next daily and weekly times in local time', () => {
+  it('calculates hourly, daily, weekday, and weekly times in local time', () => {
     const mondayMorning = new Date(2026, 0, 5, 10, 30)
 
+    expect(
+      nextScheduleTime(
+        { workflowId: crypto.randomUUID(), frequency: 'hourly', time: null, weekday: null },
+        mondayMorning
+      )
+    ).toEqual(new Date(2026, 0, 5, 11, 0))
     expect(
       nextScheduleTime(
         { workflowId: crypto.randomUUID(), frequency: 'daily', time: '09:15', weekday: null },
         mondayMorning
       )
     ).toEqual(new Date(2026, 0, 6, 9, 15))
+    expect(
+      nextScheduleTime(
+        { workflowId: crypto.randomUUID(), frequency: 'weekdays', time: '09:15', weekday: null },
+        new Date(2026, 0, 9, 10, 30)
+      )
+    ).toEqual(new Date(2026, 0, 12, 9, 15))
     expect(
       nextScheduleTime(
         { workflowId: crypto.randomUUID(), frequency: 'weekly', time: '11:00', weekday: 3 },
@@ -227,6 +243,58 @@ describe('workflow persistence and execution', () => {
       workflowName: 'Organize project assets',
       run: { trigger: 'schedule', status: 'completed' }
     })
+  })
+
+  it('lists, pauses, and resumes scheduled tasks', async () => {
+    const setup = await fixture()
+    const workflow = await saveWorkflow(setup.root, setup.input)
+    const now = new Date(2026, 0, 5, 10, 30)
+    await saveWorkflowSchedule(
+      setup.root,
+      { workflowId: workflow.id, frequency: 'hourly', time: null, weekday: null },
+      now
+    )
+
+    expect(await listScheduledTasks(setup.root)).toEqual([
+      expect.objectContaining({
+        workflow: expect.objectContaining({ id: workflow.id }),
+        schedule: expect.objectContaining({ enabled: true, frequency: 'hourly' }),
+        lastRun: null
+      })
+    ])
+
+    const paused = await setWorkflowScheduleEnabled(
+      setup.root,
+      { workflowId: workflow.id, enabled: false },
+      now
+    )
+    expect(paused.enabled).toBe(false)
+    const resumed = await setWorkflowScheduleEnabled(
+      setup.root,
+      { workflowId: workflow.id, enabled: true },
+      new Date(2026, 0, 5, 10, 45)
+    )
+    expect(resumed).toMatchObject({
+      enabled: true,
+      nextRunAt: new Date(2026, 0, 5, 11).toISOString()
+    })
+  })
+
+  it('saves computer tasks without requiring a folder or file plan', async () => {
+    const setup = await fixture()
+    const workflow = await saveWorkflow(setup.root, {
+      name: 'Publish weekly update',
+      goal: 'Publish the approved weekly update.',
+      instructions: 'Open the team workspace and publish the approved weekly update.',
+      approvalMode: 'review_each_run',
+      capability: 'computer',
+      targetApp: 'Browser'
+    })
+
+    expect(workflow).toMatchObject({ version: 3, capability: 'computer', targetApp: 'Browser' })
+    await expect(createWorkflowPlan(setup.root, workflow.id)).rejects.toThrow(
+      'Computer tasks run directly'
+    )
   })
 
   it('migrates a saved version 1 workflow before planning and preserves existing files', async () => {
@@ -289,9 +357,11 @@ describe('workflow persistence and execution', () => {
     const persisted = JSON.parse(await readFile(join(workflowDirectory, 'workflow.json'), 'utf8'))
 
     expect(persisted).toMatchObject({
-      version: 2,
+      version: 3,
       id: workflowId,
       capability: 'organize_files',
+      instructions: 'Keep the existing recipe working.',
+      approvalMode: 'allow_unattended',
       operation: 'copy',
       unmatchedPolicy: 'leave',
       unmatchedFolder: null,

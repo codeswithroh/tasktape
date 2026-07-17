@@ -6,9 +6,9 @@ TaskTape is a desktop automation builder that learns from a recorded demonstrati
 
 ## Current status
 
-TaskTape now completes one real workflow end to end. A user can record a routine, type or dictate the intended result, review what TaskTape learned, edit the inferred goal, choose a daily or weekly schedule, and run actual changes with a persisted activity log. Manual and scheduled results appear in Run history.
+TaskTape turns a recording into a saved task with editable instructions, an execution capability, and an optional schedule. A user can type or dictate the intended result, review what TaskTape learned, edit the goal and instructions, run it now, or choose hourly, daily, weekday, or weekly timing. Manual and scheduled results appear in Run history.
 
-A spoken schedule such as "every Monday at 9 AM" prefills the save controls. It never becomes active until the user reviews and saves the workflow. Every saved and completed state includes a clear New workflow action.
+A spoken schedule such as "every Monday at 9 AM" prefills the save controls. It never becomes active until the user confirms unattended execution and saves the task. The Scheduled view shows the next run, last result, pause or resume, and Run now controls.
 
 Recording starts with TaskTape's visual source gallery, which shows full displays and every currently available application window as named thumbnail tiles. The selected source is revalidated in Electron's main process immediately before capture.
 
@@ -16,14 +16,14 @@ Users can add or replace their own OpenAI API key from Settings. App-managed key
 
 The initial release is macOS-first and is being built for OpenAI Build Week. The product vision is broader than the hackathon implementation, but the demo will prove one complete, reliable workflow rather than simulate universal desktop control.
 
-The product input is general, but the first executable capability is intentionally specific: TaskTape can learn extension-based groups and child-folder destinations from the demonstration, then organize top-level files inside one user-approved folder. The user does not configure separate video or image fields. Workflows outside this capability are shown honestly as not yet runnable. Unmatched files and name collisions remain unchanged. Scheduled runs require TaskTape to be open. Background launch, history search, rollback, and arbitrary application control are not yet implemented.
+The reliable local-file capability learns extension groups and child-folder destinations from the demonstration, then organizes top-level files inside one approved folder. The user does not configure separate video or image fields. Tasks that need an application or website use OpenAI computer use through a native macOS input adapter. Model safety checks stop the run for review, and the agent is bounded to 25 turns. Scheduled runs require TaskTape to be open and the Mac to be awake. Background launch, history search, rollback, and safety-check resumption are not yet implemented.
 
 ## Product loop
 
 1. Record a real desktop workflow.
 2. Describe the result by voice or text.
 3. Review the inferred goal, learned actions, and schedule.
-4. Save the workflow and review the exact files TaskTape will change.
+4. Save the task and confirm any recurring execution.
 5. Run it now or let TaskTape run it on schedule while the app is open.
 6. Inspect the result, run history, or start another workflow.
 
@@ -37,7 +37,7 @@ The product input is general, but the first executable capability is intentional
 
 ## Development
 
-Prerequisites: Node.js 22+, pnpm 11.7.0, and macOS for desktop capture verification.
+Prerequisites: Node.js 22+, pnpm 11.7.0, Xcode Command Line Tools, and macOS for desktop capture and computer-control verification.
 
 ```bash
 cd /Users/rohitpurkait/Documents/codex_build_week

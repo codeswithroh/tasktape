@@ -36,7 +36,10 @@ const bridge: TaskTapeBridge = {
     save: (input, existingId) => ipcRenderer.invoke('workflow:save', input, existingId),
     plan: (workflowId) => ipcRenderer.invoke('workflow:plan', workflowId),
     execute: (input) => ipcRenderer.invoke('workflow:execute', input),
+    runTask: (workflowId) => ipcRenderer.invoke('workflow:run-task', workflowId),
     saveSchedule: (input) => ipcRenderer.invoke('workflow:save-schedule', input),
+    scheduled: () => ipcRenderer.invoke('workflow:scheduled'),
+    setScheduleEnabled: (input) => ipcRenderer.invoke('workflow:set-schedule-enabled', input),
     history: () => ipcRenderer.invoke('workflow:history')
   }
 }

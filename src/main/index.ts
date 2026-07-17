@@ -20,14 +20,18 @@ import type { CaptureSource, SaveRecordingInput } from '../shared/contracts.js'
 import type { AnalyzeRecordingInput, TranscribeIntentInput } from '../shared/analysis-contracts.js'
 import { captureSourceIdSchema } from '../shared/capture-source-schema.js'
 import { recordingIdSchema } from '../shared/recording-schema.js'
-import type { SaveScheduleInput, SaveWorkflowInput } from '../shared/workflow-schema.js'
+import type {
+  SaveScheduleInput,
+  SaveWorkflowInput,
+  SetScheduleEnabledInput
+} from '../shared/workflow-schema.js'
 import {
   analyzeRecording,
   requestOpenAIAnalysis,
   requestOpenAITranscription,
   transcribeIntent
 } from './analysis.js'
-import { TEST_UNSUPPORTED_WORKFLOW_ANALYSIS, TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
+import { TEST_COMPUTER_WORKFLOW_ANALYSIS, TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
 import {
   clearApiKey,
   type CredentialCipher,
@@ -36,14 +40,20 @@ import {
   saveApiKey
 } from './api-credentials.js'
 import { isAllowedMediaRequest } from './media-permissions.js'
+import { requestOpenAIComputerResponse, runComputerAgent } from './computer-agent.js'
+import { createMacOSInputHarness } from './macos-input.js'
 import { removeRecording, saveRecording } from './recordings.js'
 import {
   createWorkflowPlan,
+  executeComputerTask,
   executeWorkflowPlan,
+  listScheduledTasks,
   listWorkflowHistory,
+  readWorkflow,
   runDueSchedules,
   saveWorkflow,
-  saveWorkflowSchedule
+  saveWorkflowSchedule,
+  setWorkflowScheduleEnabled
 } from './workflows.js'
 
 if (!app.isPackaged) {
@@ -78,6 +88,52 @@ const TEST_CAPTURE_THUMBNAIL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
 const TEST_INTENT_TRANSCRIPT =
   'Organize new assets using the structure I demonstrated every Monday at 9 AM, and leave anything unmatched in place.'
+
+async function runComputerWorkflow(
+  workflow: Extract<Awaited<ReturnType<typeof readWorkflow>>, { capability: 'computer' }>
+): Promise<{ output: string; actionLog: string[] }> {
+  if (process.env.TASKTAPE_E2E === '1') {
+    return {
+      output: 'Computer task completed.',
+      actionLog: ['Completed the recorded computer task']
+    }
+  }
+  const credential = await resolveApiKey(
+    app.getPath('userData'),
+    process.env.OPENAI_API_KEY,
+    credentialCipher
+  )
+  if (!credential.apiKey) throw new Error('Add an OpenAI API key in Settings before running.')
+
+  const taskTapeWindow = BrowserWindow.getAllWindows()[0]
+  const wasVisible = taskTapeWindow?.isVisible() ?? false
+  taskTapeWindow?.hide()
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 250))
+  try {
+    return await runComputerAgent({
+      task: workflow.instructions,
+      harness: createMacOSInputHarness({
+        cacheDir: join(app.getPath('userData'), 'computer-helper'),
+        targetApp: workflow.targetApp ?? undefined
+      }),
+      provider: (request) => requestOpenAIComputerResponse(request, credential.apiKey ?? undefined)
+    })
+  } finally {
+    if (wasVisible) {
+      taskTapeWindow?.show()
+      taskTapeWindow?.focus()
+    }
+  }
+}
+
+async function runSavedTask(workflowId: string, trigger: 'manual' | 'schedule' = 'manual') {
+  const workflow = await readWorkflow(workflowsRoot(), workflowId)
+  if (workflow.capability === 'computer') {
+    return executeComputerTask(workflowsRoot(), workflow.id, runComputerWorkflow, trigger)
+  }
+  const plan = await createWorkflowPlan(workflowsRoot(), workflow.id)
+  return executeWorkflowPlan(workflowsRoot(), { workflowId: workflow.id, planId: plan.id }, trigger)
+}
 const TEST_CAPTURE_SOURCES: CaptureSource[] = [
   {
     id: 'screen:test:0',
@@ -217,8 +273,8 @@ function registerAnalysisIpc(): void {
     assertTrustedSender(event)
     if (process.env.TASKTAPE_E2E === '1') {
       const fixture =
-        process.env.TASKTAPE_E2E_ANALYSIS === 'unsupported'
-          ? TEST_UNSUPPORTED_WORKFLOW_ANALYSIS
+        process.env.TASKTAPE_E2E_ANALYSIS === 'computer'
+          ? TEST_COMPUTER_WORKFLOW_ANALYSIS
           : TEST_WORKFLOW_ANALYSIS
       return analyzeRecording(input, async () => fixture)
     }
@@ -278,9 +334,21 @@ function registerWorkflowIpc(): void {
     assertTrustedSender(event)
     return executeWorkflowPlan(workflowsRoot(), input)
   })
+  ipcMain.handle('workflow:run-task', (event, workflowId: string) => {
+    assertTrustedSender(event)
+    return runSavedTask(workflowId)
+  })
   ipcMain.handle('workflow:save-schedule', (event, input: SaveScheduleInput) => {
     assertTrustedSender(event)
     return saveWorkflowSchedule(workflowsRoot(), input)
+  })
+  ipcMain.handle('workflow:scheduled', (event) => {
+    assertTrustedSender(event)
+    return listScheduledTasks(workflowsRoot())
+  })
+  ipcMain.handle('workflow:set-schedule-enabled', (event, input: SetScheduleEnabledInput) => {
+    assertTrustedSender(event)
+    return setWorkflowScheduleEnabled(workflowsRoot(), input)
   })
   ipcMain.handle('workflow:history', (event) => {
     assertTrustedSender(event)
@@ -295,7 +363,7 @@ function startWorkflowScheduler(): void {
   const tick = (): void => {
     if (schedulerRunning) return
     schedulerRunning = true
-    void runDueSchedules(workflowsRoot())
+    void runDueSchedules(workflowsRoot(), new Date(), runComputerWorkflow)
       .catch((error: unknown) => {
         process.stderr.write(
           `TaskTape scheduler error: ${error instanceof Error ? error.message : 'Unknown error'}\n`

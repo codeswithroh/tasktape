@@ -1,5 +1,6 @@
 import {
   CircleDot,
+  CalendarClock,
   History,
   LoaderCircle,
   MonitorUp,
@@ -15,6 +16,7 @@ import { useState } from 'react'
 import { IntentCapture } from './analysis/IntentCapture'
 import { useAnalysis } from './analysis/useAnalysis'
 import { RunHistory } from './history/RunHistory'
+import { ScheduledTasks } from './schedule/ScheduledTasks'
 import { useRecorder } from './recorder/useRecorder'
 import { SourcePicker } from './recorder/SourcePicker'
 import { ApiKeySettings } from './settings/ApiKeySettings'
@@ -28,7 +30,7 @@ function formatDuration(milliseconds: number): string {
 }
 
 export function App(): React.JSX.Element {
-  const [view, setView] = useState<'workflows' | 'history' | 'settings'>('workflows')
+  const [view, setView] = useState<'workflows' | 'scheduled' | 'history' | 'settings'>('workflows')
   const recorder = useRecorder()
   const analysis = useAnalysis()
   const [userIntent, setUserIntent] = useState('')
@@ -59,6 +61,14 @@ export function App(): React.JSX.Element {
           <span>TaskTape</span>
         </div>
         <nav aria-label="Main navigation">
+          <button
+            className={`nav-item ${view === 'scheduled' ? 'active' : ''}`}
+            type="button"
+            onClick={() => setView('scheduled')}
+          >
+            <CalendarClock size={17} />
+            Scheduled
+          </button>
           <button
             className={`nav-item ${view === 'workflows' ? 'active' : ''}`}
             type="button"
@@ -92,6 +102,15 @@ export function App(): React.JSX.Element {
         ) : (
           <>
             {view === 'history' ? <RunHistory onCreateNew={createNewWorkflow} /> : null}
+            {view === 'scheduled' ? (
+              <ScheduledTasks
+                onCreateNew={createNewWorkflow}
+                onRunNow={async (workflowId) => {
+                  await window.tasktape.workflow.runTask(workflowId)
+                  setView('history')
+                }}
+              />
+            ) : null}
             <div hidden={view !== 'workflows'}>
               <header className="workspace-header">
                 <div>
@@ -102,7 +121,7 @@ export function App(): React.JSX.Element {
                   {recorder.state === 'ready' ? (
                     <button type="button" onClick={createNewWorkflow}>
                       <Plus size={15} />
-                      New workflow
+                      New task
                     </button>
                   ) : null}
                   <div className="local-status">
@@ -255,7 +274,7 @@ export function App(): React.JSX.Element {
                         </>
                       ) : (
                         <>
-                          <p className="step-label">New workflow</p>
+                          <p className="step-label">New task</p>
                           <h2 id="recorder-title">
                             {recorder.state === 'error' ? 'Recording not started' : 'Show it once'}
                           </h2>

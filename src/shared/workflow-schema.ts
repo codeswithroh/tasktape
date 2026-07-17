@@ -35,9 +35,14 @@ export const learnedFileRuleSchema = z.object({
   destinationFolder: childDirectoryNameSchema
 })
 
-const saveWorkflowFieldsSchema = z.object({
+const commonTaskFieldsSchema = z.object({
   name: z.string().trim().min(1).max(80),
   goal: z.string().trim().min(1).max(240),
+  instructions: z.string().trim().min(1).max(2_000),
+  approvalMode: z.enum(['review_each_run', 'allow_unattended'])
+})
+
+const organizeFilesTaskFieldsSchema = commonTaskFieldsSchema.extend({
   capability: z.literal('organize_files'),
   sourceDirectory: absoluteDirectorySchema,
   operation: z.enum(['move', 'copy']),
@@ -46,10 +51,21 @@ const saveWorkflowFieldsSchema = z.object({
   unmatchedFolder: childDirectoryNameSchema.nullable()
 })
 
+const computerTaskFieldsSchema = commonTaskFieldsSchema.extend({
+  capability: z.literal('computer'),
+  targetApp: z.string().trim().min(1).max(120).nullable()
+})
+
+const saveWorkflowFieldsSchema = z.discriminatedUnion('capability', [
+  organizeFilesTaskFieldsSchema,
+  computerTaskFieldsSchema
+])
+
 function validateLearnedRules(
   workflow: z.infer<typeof saveWorkflowFieldsSchema>,
   context: z.RefinementCtx
 ): void {
+  if (workflow.capability !== 'organize_files') return
   const extensions = new Set<string>()
   workflow.rules.forEach((rule, ruleIndex) => {
     rule.extensions.forEach((extension, extensionIndex) => {
@@ -74,14 +90,34 @@ function validateLearnedRules(
 
 export const saveWorkflowInputSchema = saveWorkflowFieldsSchema.superRefine(validateLearnedRules)
 
-export const savedWorkflowSchema = saveWorkflowFieldsSchema
-  .extend({
-    version: z.literal(2),
-    id: workflowIdSchema,
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime()
-  })
+const persistedTaskFields = {
+  version: z.literal(3),
+  id: workflowIdSchema,
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime()
+}
+
+export const savedWorkflowSchema = z
+  .discriminatedUnion('capability', [
+    organizeFilesTaskFieldsSchema.extend(persistedTaskFields),
+    computerTaskFieldsSchema.extend(persistedTaskFields)
+  ])
   .superRefine(validateLearnedRules)
+
+export const versionTwoSavedWorkflowSchema = z.object({
+  version: z.literal(2),
+  id: workflowIdSchema,
+  name: z.string().trim().min(1).max(80),
+  goal: z.string().trim().min(1).max(240),
+  capability: z.literal('organize_files'),
+  sourceDirectory: absoluteDirectorySchema,
+  operation: z.enum(['move', 'copy']),
+  rules: z.array(learnedFileRuleSchema).min(1).max(20),
+  unmatchedPolicy: z.enum(['leave', 'move']),
+  unmatchedFolder: childDirectoryNameSchema.nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime()
+})
 
 export const legacySavedWorkflowSchema = z.object({
   version: z.literal(1),
@@ -129,6 +165,10 @@ export const executeWorkflowInputSchema = z.object({
   planId: z.string().uuid()
 })
 
+export const runTaskInputSchema = z.object({
+  workflowId: workflowIdSchema
+})
+
 export const workflowRunSchema = z.object({
   version: z.literal(1),
   id: z.string().uuid(),
@@ -149,25 +189,63 @@ export const workflowRunSchema = z.object({
   )
 })
 
-export const saveScheduleInputSchema = z.object({
+const scheduleFieldsSchema = z.object({
   workflowId: workflowIdSchema,
-  frequency: z.enum(['daily', 'weekly']),
-  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  frequency: z.enum(['hourly', 'daily', 'weekdays', 'weekly']),
+  time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable(),
   weekday: z.number().int().min(0).max(6).nullable()
 })
 
-export const workflowScheduleSchema = saveScheduleInputSchema.extend({
-  version: z.literal(1),
-  enabled: z.boolean(),
-  nextRunAt: z.string().datetime(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime()
-})
+function validateSchedule(
+  schedule: z.infer<typeof scheduleFieldsSchema>,
+  context: z.RefinementCtx
+): void {
+  if (schedule.frequency !== 'hourly' && !schedule.time) {
+    context.addIssue({
+      code: 'custom',
+      path: ['time'],
+      message: 'Choose a time for this schedule.'
+    })
+  }
+  if (schedule.frequency === 'weekly' && schedule.weekday === null) {
+    context.addIssue({
+      code: 'custom',
+      path: ['weekday'],
+      message: 'Choose a day for this weekly schedule.'
+    })
+  }
+}
+
+export const saveScheduleInputSchema = scheduleFieldsSchema.superRefine(validateSchedule)
+
+export const workflowScheduleSchema = scheduleFieldsSchema
+  .extend({
+    version: z.literal(1),
+    enabled: z.boolean(),
+    nextRunAt: z.string().datetime(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime()
+  })
+  .superRefine(validateSchedule)
 
 export const workflowHistoryEntrySchema = z.object({
   workflowName: z.string().min(1).max(80),
   workflowGoal: z.string().min(1).max(240),
   run: workflowRunSchema
+})
+
+export const scheduledTaskSchema = z.object({
+  workflow: savedWorkflowSchema,
+  schedule: workflowScheduleSchema,
+  lastRun: workflowRunSchema.nullable()
+})
+
+export const setScheduleEnabledInputSchema = z.object({
+  workflowId: workflowIdSchema,
+  enabled: z.boolean()
 })
 
 export type SaveWorkflowInput = z.infer<typeof saveWorkflowInputSchema>
@@ -177,3 +255,5 @@ export type WorkflowRun = z.infer<typeof workflowRunSchema>
 export type SaveScheduleInput = z.infer<typeof saveScheduleInputSchema>
 export type WorkflowSchedule = z.infer<typeof workflowScheduleSchema>
 export type WorkflowHistoryEntry = z.infer<typeof workflowHistoryEntrySchema>
+export type ScheduledTask = z.infer<typeof scheduledTaskSchema>
+export type SetScheduleEnabledInput = z.infer<typeof setScheduleEnabledInputSchema>

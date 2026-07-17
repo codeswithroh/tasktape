@@ -4,7 +4,7 @@ import { zodTextFormat } from 'openai/helpers/zod'
 import type { AnalyzeRecordingInput } from '../shared/analysis-contracts.js'
 import { workflowAnalysisSchema } from '../shared/analysis-schema.js'
 import { analyzeRecording, buildAnalysisContent } from './analysis.js'
-import { TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
+import { TEST_COMPUTER_WORKFLOW_ANALYSIS, TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
 
 const input: AnalyzeRecordingInput = {
   recordingId: '9d9ca2de-0bc1-45eb-977e-9c9bcba8a77d',
@@ -62,28 +62,15 @@ describe('recording analysis boundary', () => {
     expect(result.learnedWorkflow.steps).toHaveLength(3)
   })
 
-  it('represents workflows outside the current executor honestly', async () => {
-    const unsupportedAnalysis = {
-      ...TEST_WORKFLOW_ANALYSIS,
-      title: 'Prepare a weekly report',
-      summary: 'The recording shows rows being reviewed before a report is submitted.',
-      goalHypothesis: 'Review the report and submit it after approval.',
-      learnedWorkflow: {
-        capability: 'not_yet_supported' as const,
-        summary: 'Review report rows and submit the completed report.',
-        steps: [
-          { label: 'Review rows', description: 'Check the report data for completeness.' },
-          { label: 'Submit report', description: 'Send the completed report for review.' }
-        ],
-        fileOrganization: null
-      }
-    }
-
-    const result = await analyzeRecording(input, async () => unsupportedAnalysis)
+  it('turns application workflows into executable computer tasks', async () => {
+    const result = await analyzeRecording(input, async () => TEST_COMPUTER_WORKFLOW_ANALYSIS)
 
     expect(result.learnedWorkflow).toMatchObject({
-      capability: 'not_yet_supported',
-      fileOrganization: null
+      capability: 'computer',
+      fileOrganization: null,
+      computerAutomation: {
+        targetApp: 'Browser'
+      }
     })
   })
 

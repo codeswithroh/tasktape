@@ -29,7 +29,12 @@ import {
   type WorkflowSchedule,
   workflowScheduleSchema,
   type WorkflowHistoryEntry,
-  workflowHistoryEntrySchema
+  workflowHistoryEntrySchema,
+  versionTwoSavedWorkflowSchema,
+  type ScheduledTask,
+  scheduledTaskSchema,
+  type SetScheduleEnabledInput,
+  setScheduleEnabledInputSchema
 } from '../shared/workflow-schema.js'
 
 const LEGACY_VIDEO_EXTENSIONS = ['.avi', '.m4v', '.mkv', '.mov', '.mp4', '.webm']
@@ -45,19 +50,33 @@ function workflowDirectory(root: string, workflowId: string): string {
   return join(root, workflowId)
 }
 
-async function readWorkflow(root: string, workflowId: string): Promise<SavedWorkflow> {
+export async function readWorkflow(root: string, workflowId: string): Promise<SavedWorkflow> {
   const id = workflowIdSchema.parse(workflowId)
   const path = join(workflowDirectory(root, id), 'workflow.json')
   const content = JSON.parse(await readFile(path, 'utf8'))
   const current = savedWorkflowSchema.safeParse(content)
   if (current.success) return current.data
 
+  const versionTwo = versionTwoSavedWorkflowSchema.safeParse(content)
+  if (versionTwo.success) {
+    const migrated = savedWorkflowSchema.parse({
+      ...versionTwo.data,
+      version: 3,
+      instructions: versionTwo.data.goal,
+      approvalMode: 'allow_unattended'
+    })
+    await writeJson(path, migrated)
+    return migrated
+  }
+
   const legacy = legacySavedWorkflowSchema.parse(content)
   const migrated = savedWorkflowSchema.parse({
-    version: 2,
+    version: 3,
     id: legacy.id,
     name: legacy.name,
     goal: legacy.goal,
+    instructions: legacy.goal,
+    approvalMode: 'allow_unattended',
     capability: 'organize_files',
     sourceDirectory: legacy.sourceDirectory,
     operation: legacy.operation,
@@ -90,15 +109,17 @@ export async function saveWorkflow(
   existingId?: string
 ): Promise<SavedWorkflow> {
   const input = saveWorkflowInputSchema.parse(rawInput)
-  const sourceInfo = await stat(input.sourceDirectory).catch(() => null)
-  if (!sourceInfo?.isDirectory()) {
-    throw new Error('That source folder is no longer available. Choose it again.')
+  if (input.capability === 'organize_files') {
+    const sourceInfo = await stat(input.sourceDirectory).catch(() => null)
+    if (!sourceInfo?.isDirectory()) {
+      throw new Error('That source folder is no longer available. Choose it again.')
+    }
   }
   const previous = existingId ? await readWorkflow(root, workflowIdSchema.parse(existingId)) : null
   const now = new Date().toISOString()
   const workflow = savedWorkflowSchema.parse({
     ...input,
-    version: 2,
+    version: 3,
     id: previous?.id ?? randomUUID(),
     createdAt: previous?.createdAt ?? now,
     updatedAt: now
@@ -111,16 +132,21 @@ export async function saveWorkflow(
   return workflow
 }
 
+type SavedFileWorkflow = Extract<SavedWorkflow, { capability: 'organize_files' }>
+
 function findRule(
-  workflow: SavedWorkflow,
+  workflow: SavedFileWorkflow,
   extension: string
-): SavedWorkflow['rules'][number] | null {
+): SavedFileWorkflow['rules'][number] | null {
   return workflow.rules.find((rule) => rule.extensions.includes(extension)) ?? null
 }
 
 export async function createWorkflowPlan(root: string, workflowId: string): Promise<WorkflowPlan> {
   const id = workflowIdSchema.parse(workflowId)
   const workflow = await readWorkflow(root, id)
+  if (workflow.capability !== 'organize_files') {
+    throw new Error('Computer tasks run directly and do not create a file plan.')
+  }
   const sourceInfo = await stat(workflow.sourceDirectory)
   if (!sourceInfo.isDirectory()) throw new Error('The workflow source is not a folder.')
 
@@ -250,13 +276,88 @@ export async function executeWorkflowPlan(
   return run
 }
 
+export interface ComputerTaskResult {
+  output: string
+  actionLog: string[]
+}
+
+export type ComputerTaskRunner = (
+  workflow: Extract<SavedWorkflow, { capability: 'computer' }>
+) => Promise<ComputerTaskResult>
+
+export async function executeComputerTask(
+  root: string,
+  workflowId: string,
+  runner: ComputerTaskRunner,
+  trigger: 'manual' | 'schedule' = 'manual'
+): Promise<WorkflowRun> {
+  const workflow = await readWorkflow(root, workflowId)
+  if (workflow.capability !== 'computer')
+    throw new Error('This task does not use computer control.')
+
+  const startedAt = new Date().toISOString()
+  let status: WorkflowRun['status'] = 'completed'
+  let messages: string[]
+  try {
+    const result = await runner(workflow)
+    messages = result.actionLog.length > 0 ? result.actionLog : [result.output || 'Task completed.']
+  } catch (error) {
+    status = 'failed'
+    const actionLog =
+      typeof error === 'object' &&
+      error !== null &&
+      'actionLog' in error &&
+      Array.isArray(error.actionLog)
+        ? error.actionLog.filter((entry): entry is string => typeof entry === 'string')
+        : []
+    const message = error instanceof Error ? error.message : 'The computer task failed.'
+    messages = [...actionLog, message]
+  }
+
+  const results = messages.slice(0, 1_000).map((message) => ({
+    actionId: randomUUID(),
+    sourcePath: 'computer://desktop',
+    destinationPath: 'computer://desktop',
+    status: status === 'completed' ? ('completed' as const) : ('failed' as const),
+    message: message.slice(0, 240)
+  }))
+  const run = workflowRunSchema.parse({
+    version: 1,
+    id: randomUUID(),
+    workflowId: workflow.id,
+    planId: randomUUID(),
+    startedAt,
+    completedAt: new Date().toISOString(),
+    status,
+    trigger,
+    results
+  })
+  await writeJson(join(workflowDirectory(root, workflow.id), 'runs', `${run.id}.json`), run)
+  return run
+}
+
 export function nextScheduleTime(input: SaveScheduleInput, after = new Date()): Date {
+  if (input.frequency === 'hourly') {
+    const next = new Date(after)
+    next.setMinutes(0, 0, 0)
+    next.setHours(next.getHours() + 1)
+    return next
+  }
+  if (!input.time) throw new Error('Choose a time for this schedule.')
   const [hours, minutes] = input.time.split(':').map(Number)
   const next = new Date(after)
   next.setSeconds(0, 0)
   next.setHours(hours, minutes, 0, 0)
   if (input.frequency === 'daily') {
     if (next <= after) next.setDate(next.getDate() + 1)
+    return next
+  }
+  if (input.frequency === 'weekdays') {
+    do {
+      if (next <= after) next.setDate(next.getDate() + 1)
+      if (next.getDay() === 6) next.setDate(next.getDate() + 2)
+      if (next.getDay() === 0) next.setDate(next.getDate() + 1)
+    } while (next <= after)
     return next
   }
   const weekday = input.weekday ?? 1
@@ -331,7 +432,82 @@ export async function listWorkflowHistory(root: string): Promise<WorkflowHistory
   return entries.sort((left, right) => right.run.completedAt.localeCompare(left.run.completedAt))
 }
 
-export async function runDueSchedules(root: string, now = new Date()): Promise<WorkflowRun[]> {
+async function latestWorkflowRun(root: string, workflowId: string): Promise<WorkflowRun | null> {
+  let files: string[]
+  try {
+    files = await readdir(join(workflowDirectory(root, workflowId), 'runs'))
+  } catch {
+    return null
+  }
+  const runs = await Promise.all(
+    files
+      .filter((name) => name.endsWith('.json'))
+      .map(async (file) =>
+        workflowRunSchema.parse(
+          JSON.parse(
+            await readFile(join(workflowDirectory(root, workflowId), 'runs', file), 'utf8')
+          )
+        )
+      )
+  )
+  return runs.sort((left, right) => right.completedAt.localeCompare(left.completedAt))[0] ?? null
+}
+
+export async function listScheduledTasks(root: string): Promise<ScheduledTask[]> {
+  let workflowIds: string[]
+  try {
+    workflowIds = await readdir(root)
+  } catch {
+    return []
+  }
+  const tasks: ScheduledTask[] = []
+  for (const workflowId of workflowIds) {
+    try {
+      const workflow = await readWorkflow(root, workflowId)
+      const schedule = workflowScheduleSchema.parse(
+        JSON.parse(
+          await readFile(join(workflowDirectory(root, workflowId), 'schedule.json'), 'utf8')
+        )
+      )
+      tasks.push(
+        scheduledTaskSchema.parse({
+          workflow,
+          schedule,
+          lastRun: await latestWorkflowRun(root, workflowId)
+        })
+      )
+    } catch {
+      continue
+    }
+  }
+  return tasks.sort((left, right) =>
+    left.schedule.nextRunAt.localeCompare(right.schedule.nextRunAt)
+  )
+}
+
+export async function setWorkflowScheduleEnabled(
+  root: string,
+  rawInput: SetScheduleEnabledInput,
+  now = new Date()
+): Promise<WorkflowSchedule> {
+  const input = setScheduleEnabledInputSchema.parse(rawInput)
+  const path = join(workflowDirectory(root, input.workflowId), 'schedule.json')
+  const current = workflowScheduleSchema.parse(JSON.parse(await readFile(path, 'utf8')))
+  const schedule = workflowScheduleSchema.parse({
+    ...current,
+    enabled: input.enabled,
+    nextRunAt: input.enabled ? nextScheduleTime(current, now).toISOString() : current.nextRunAt,
+    updatedAt: now.toISOString()
+  })
+  await writeJson(path, schedule)
+  return schedule
+}
+
+export async function runDueSchedules(
+  root: string,
+  now = new Date(),
+  computerRunner?: ComputerTaskRunner
+): Promise<WorkflowRun[]> {
   let workflowIds: string[] = []
   try {
     workflowIds = await readdir(root)
@@ -348,8 +524,17 @@ export async function runDueSchedules(root: string, now = new Date()): Promise<W
       continue
     }
     if (!schedule.enabled || new Date(schedule.nextRunAt) > now) continue
-    const plan = await createWorkflowPlan(root, workflowId)
-    runs.push(await executeWorkflowPlan(root, { workflowId, planId: plan.id }, 'schedule'))
+    const workflow = await readWorkflow(root, workflowId)
+    if (workflow.capability === 'computer') {
+      if (!computerRunner) throw new Error('The computer task runner is unavailable.')
+      if (workflow.approvalMode !== 'allow_unattended') {
+        throw new Error('This computer task is not approved for unattended runs.')
+      }
+      runs.push(await executeComputerTask(root, workflowId, computerRunner, 'schedule'))
+    } else {
+      const plan = await createWorkflowPlan(root, workflowId)
+      runs.push(await executeWorkflowPlan(root, { workflowId, planId: plan.id }, 'schedule'))
+    }
     const next = workflowScheduleSchema.parse({
       ...schedule,
       nextRunAt: nextScheduleTime(schedule, now).toISOString(),
