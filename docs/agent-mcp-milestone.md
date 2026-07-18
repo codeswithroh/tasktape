@@ -54,7 +54,7 @@ The model receives compact summaries and resource links. Large recordings and tr
 ## Safety
 
 - Only one active browser session is allowed.
-- URLs must use HTTP or HTTPS and cannot contain credentials.
+- URLs must use HTTP or HTTPS, cannot contain credentials, and are limited to loopback development servers for this milestone.
 - The browser profile is temporary and isolated.
 - Tool arguments are schema-validated and text lengths are bounded.
 - Browser actions are limited to the TaskTape-created page.
@@ -72,4 +72,3 @@ The milestone is complete only when all of the following pass:
 4. The evidence directory contains valid metadata, initial and final screenshots, a non-empty Playwright trace, and the captured console or network records.
 5. The compiled workflow persists the expected outcome and replay instructions and appears in TaskTape.
 6. Existing unit, Electron, live Replay, and packaging gates remain green, with paid live tests run only once after deterministic checks pass.
-

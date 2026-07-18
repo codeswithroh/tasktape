@@ -103,6 +103,21 @@ export async function readWorkflow(root: string, workflowId: string): Promise<Sa
   return migrated
 }
 
+export async function listWorkflows(root: string): Promise<SavedWorkflow[]> {
+  const entries = await readdir(root, { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return []
+    throw error
+  })
+  const workflows = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => readWorkflow(root, entry.name).catch(() => null))
+  )
+  return workflows
+    .filter((workflow): workflow is SavedWorkflow => workflow !== null)
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+}
+
 export async function saveWorkflow(
   root: string,
   rawInput: SaveWorkflowInput,
