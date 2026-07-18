@@ -2,44 +2,47 @@
 
 ## Problem
 
-People repeat small computer workflows every day, but conventional automation tools ask them to describe those workflows as triggers, selectors, APIs, or scripts. Screen-recording tools capture what happened but stop at documentation. General-purpose computer-use agents can act, but often hide the plan and make repeated execution difficult to inspect or trust.
+Developers lose time translating bug reports into reliable reproductions. Screen recordings show symptoms but omit console, network, DOM, environment, and expected-outcome context. Coding agents can investigate, but their successful reproduction often disappears inside one conversation instead of becoming a durable regression check.
 
 ## Product thesis
 
-A demonstration contains useful procedural evidence, but it does not fully reveal intent. TaskTape combines a native recording with a short post-recording interview so the system can distinguish constants from variables, meaningful steps from incidental clicks, and safe defaults from actions that need approval.
+A bug reproduction should become a reusable engineering asset. TaskTape lets a person demonstrate a failure or lets Claude Code or Codex reproduce it through an instrumented local browser. It combines the actions, synchronized evidence, and expected outcome into one reviewable Replay check.
 
 The output is not an opaque agent session. It is a versioned, editable workflow recipe with explicit inputs, capabilities, approvals, and expected outcomes.
 
 ## Target user
 
-The first user is an individual knowledge worker, creator, operator, or freelancer who repeats multi-step work across local files and browser tools but does not want to maintain scripts or enterprise RPA infrastructure.
+The first user is a developer or small product team using coding agents to investigate bugs in local web applications. They want richer debugging context and persistent checks without writing a brittle end-to-end test before they understand the failure.
 
 ## Core differentiators
 
-- Demonstration plus intent interview, instead of demonstration alone.
-- Editable workflow recipes, instead of black-box replay.
-- Dry runs, scoped capabilities, approvals, and logs for repeated execution.
-- Local-first capture and storage, with selective model uploads.
-- Consumer-grade setup and language rather than enterprise process tooling.
+- Human demonstration and agent-operated reproduction feed the same check model.
+- Video, screenshots, DOM snapshots, console events, network failures, and actions stay synchronized.
+- A local MCP server works with Claude Code, Codex, and other compatible clients.
+- Replay execution is separate from capture, with editable instructions and an explicit expected outcome.
+- Passed, failed, and inconclusive runs preserve visual evidence and history.
+- Capture and evidence remain local by default.
 
 ## Hackathon proof
 
-The Build Week version will prove the complete product loop using a deterministic local-file workflow: a user records a messy-folder cleanup, explains naming and grouping intent, reviews the generated recipe, previews the proposed changes, and executes or schedules the approved workflow.
+The Build Week version proves one browser regression loop against a disposable creator-asset application. A connected agent launches the local target through TaskTape, reproduces the category-loss bug, records the resulting evidence, and compiles a check. The same check fails against the broken state and passes against the fixed state through OpenAI computer use and visual outcome verification.
 
-This workflow is a test fixture, not the product boundary. The recipe model and product interaction are designed to support additional capability adapters later.
+Human screen recording, voice intent, schedules, file workflows, and run history remain in the product, but the submission story centers on the agent-operated browser reproduction.
 
 ## Non-goals for the hackathon
 
-- Universal control of arbitrary desktop applications.
-- Pixel-coordinate macro replay as the primary execution method.
+- Universal instrumentation of arbitrary desktop applications.
+- Remote production or staging browser sessions.
+- Unattended issue ingestion and automatic code modification.
+- Bundled CI workers or pull-request status checks.
 - Team administration, billing, or enterprise deployment.
 - A public workflow marketplace.
 - Silent destructive actions.
 
 ## Success criteria
 
-- A new user can record, explain, generate, review, dry-run, and execute the reference workflow without editing code.
-- The generated recipe separates inferred values from user-confirmed values.
-- The dry run accurately previews filesystem changes without mutating the fixture.
-- The approved run produces the expected result and an auditable log.
-- Failure and ambiguity are visible to the user rather than silently ignored.
+- Claude Code, Codex, or a protocol test client can discover TaskTape's MCP tools.
+- An agent can reproduce the local reference bug while TaskTape stores a non-empty trace, screenshots, console and network context, and ordered actions.
+- Finishing capture creates a visible review-required Replay check without executing it.
+- The same check records a failed verdict for the broken target and a passed verdict for the fixed target.
+- The desktop app and external agent see the same active session, saved check, and run evidence.
