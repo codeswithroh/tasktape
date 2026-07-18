@@ -15,6 +15,10 @@ Electron is used because its desktop capture and process isolation APIs let the 
 
 `contextIsolation`, renderer sandboxing, and disabled Node integration are mandatory. New IPC operations require a typed contract and input validation.
 
+## Reference product path
+
+The Build Week product is TaskTape Replay: a narrated bug recording becomes a reusable regression check. The reference target is a disposable browser application with a broken and a fixed mode. This keeps the demo observable and repeatable while exercising the same capture, analysis, computer-use, evidence, scheduling, and history boundaries used by the wider product.
+
 ## Capture source selection
 
 TaskTape lists full displays and open application windows through Electron `desktopCapturer`, then renders a grouped thumbnail gallery in the sandboxed UI. A source ID selected by the user is validated against a freshly enumerated main-process source list. The display-media handler consumes that one pending selection and rejects requests without one; the renderer cannot nominate an arbitrary capture target.
@@ -39,7 +43,13 @@ The deterministic filesystem adapter supports inspect, classify, create-director
 
 The file recipe scans regular files at the top level of one user-selected folder. It contains a dynamic list of model-inferred file groups, extension matchers, and child-folder destinations. This supports demonstrated structures such as footage, documents, archives, or project assets without hard-coded video and image fields. It creates only schema-valid child folders and either moves or copies with exclusive destination creation. Unmatched files and collisions stay unchanged. A persisted plan records file size and modification time; execution refuses an action if the source changed after review.
 
-The computer agent activates the saved target application, requests actions from `gpt-5.6`, executes supported mouse and keyboard events through pinned `@nut-tree-fork/nut-js`, and returns a screenshot after each action batch. Running input inside TaskTape gives macOS a stable Accessibility identity. Coordinates, key names, drag paths, typed-text length, provider request time, and turn count are bounded. On-screen text is treated as untrusted content. Any pending model safety check stops execution before its actions run.
+The computer agent activates the saved target application, requests actions from `gpt-5.6`, executes supported mouse and keyboard events through pinned `@nut-tree-fork/nut-js`, and returns a screenshot after each action batch. Running input inside TaskTape gives macOS a stable Accessibility identity. Coordinates, key names, drag paths, typed-text length, 60-second provider requests, and a 25-turn limit are bounded. On-screen text is treated as untrusted content. Any pending model safety check stops execution before its actions run.
+
+## Outcome verification
+
+Computer checks persist a plain-language expected outcome. After replay, TaskTape sends the final screenshot and that condition to a separate schema-bound visual evaluator. The evaluator returns `passed`, `failed`, or `inconclusive`, plus a short summary and evidence list. The run log stores that verdict and final screenshot so completion and history can explain what was observed instead of treating successful mouse clicks as proof that the product worked.
+
+Execution and evaluation remain separate boundaries. A completed interaction can still produce a failed regression check. Missing or ambiguous visual evidence produces an inconclusive result rather than a fabricated pass.
 
 Version 1 and version 2 file recipes are migrated on read into equivalent version 3 tasks. The source-folder permission boundary and deterministic executor remain unchanged during migration.
 

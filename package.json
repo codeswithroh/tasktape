@@ -1,7 +1,7 @@
 {
   "name": "tasktape",
   "version": "0.1.0",
-  "description": "Show your work once. Replay it safely.",
+  "description": "Turn a narrated bug recording into a living regression check.",
   "type": "module",
   "main": "./out/main/index.js",
   "author": "Rohit Purkait",
