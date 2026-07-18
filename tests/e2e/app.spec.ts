@@ -455,7 +455,15 @@ test('stores and clears an app-managed API key without exposing plaintext', asyn
   try {
     const page = await application.firstWindow()
     await page.getByRole('button', { name: 'Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'OpenAI connection' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Connections' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Agent connection' })).toBeVisible()
+    await expect(page.getByText('Ready', { exact: true })).toBeVisible()
+    const agentStatus = await page.evaluate(() => window.tasktape.agent.getStatus())
+    expect(agentStatus).toMatchObject({ running: true, activeSession: null })
+    expect(agentStatus.endpoint).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp$/)
+    await expect(
+      page.getByText(`codex mcp add tasktape --url ${agentStatus.endpoint}`)
+    ).toBeVisible()
 
     await page.getByLabel('OpenAI API key').fill(fakeApiKey)
     await page.getByRole('button', { name: 'Save key' }).click()

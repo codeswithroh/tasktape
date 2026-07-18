@@ -21,6 +21,7 @@ import { useRecorder } from './recorder/useRecorder'
 import { SourcePicker } from './recorder/SourcePicker'
 import { ApiKeySettings } from './settings/ApiKeySettings'
 import { WorkflowDraftReview } from './workflow/WorkflowDraftReview'
+import { SavedChecks } from './workflow/SavedChecks'
 
 function formatDuration(milliseconds: number): string {
   const totalSeconds = milliseconds === 0 ? 0 : Math.ceil(milliseconds / 1_000)
@@ -312,6 +313,14 @@ export function App(): React.JSX.Element {
                   </>
                 )}
               </section>
+              {recorder.state === 'idle' || recorder.state === 'error' ? (
+                <SavedChecks
+                  onRun={async (workflowId) => {
+                    await window.tasktape.workflow.runTask(workflowId)
+                    setView('history')
+                  }}
+                />
+              ) : null}
             </div>
           </>
         )}

@@ -104,10 +104,12 @@ export async function readWorkflow(root: string, workflowId: string): Promise<Sa
 }
 
 export async function listWorkflows(root: string): Promise<SavedWorkflow[]> {
-  const entries = await readdir(root, { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
-    if (error.code === 'ENOENT') return []
-    throw error
-  })
+  const entries = await readdir(root, { withFileTypes: true }).catch(
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return []
+      throw error
+    }
+  )
   const workflows = await Promise.all(
     entries
       .filter((entry) => entry.isDirectory())

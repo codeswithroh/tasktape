@@ -67,7 +67,11 @@ export interface TaskTapeBridge {
     saveApiKey: (apiKey: string) => Promise<ApiKeyStatus>
     clearApiKey: () => Promise<ApiKeyStatus>
   }
+  agent: {
+    getStatus: () => Promise<AgentServerStatus>
+  }
   workflow: {
+    list: () => Promise<SavedWorkflow[]>
     chooseDirectory: () => Promise<string | null>
     save: (input: SaveWorkflowInput, existingId?: string) => Promise<SavedWorkflow>
     plan: (workflowId: string) => Promise<WorkflowPlan>
@@ -85,6 +89,7 @@ import type {
   TranscribeIntentResult
 } from './analysis-contracts.js'
 import type { WorkflowAnalysis } from './analysis-schema.js'
+import type { AgentServerStatus } from './agent-schema.js'
 import type {
   SaveScheduleInput,
   SavedWorkflow,

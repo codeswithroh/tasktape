@@ -31,7 +31,11 @@ const bridge: TaskTapeBridge = {
     saveApiKey: (apiKey: string) => ipcRenderer.invoke('settings:save-api-key', apiKey),
     clearApiKey: () => ipcRenderer.invoke('settings:clear-api-key')
   },
+  agent: {
+    getStatus: () => ipcRenderer.invoke('agent:get-status')
+  },
   workflow: {
+    list: () => ipcRenderer.invoke('workflow:list'),
     chooseDirectory: () => ipcRenderer.invoke('workflow:choose-directory'),
     save: (input, existingId) => ipcRenderer.invoke('workflow:save', input, existingId),
     plan: (workflowId) => ipcRenderer.invoke('workflow:plan', workflowId),

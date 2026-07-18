@@ -32,6 +32,7 @@ import {
   transcribeIntent
 } from './analysis.js'
 import { TEST_COMPUTER_WORKFLOW_ANALYSIS, TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
+import { AgentMcpServer } from './agent-mcp.js'
 import {
   clearApiKey,
   type CredentialCipher,
@@ -39,6 +40,7 @@ import {
   resolveApiKey,
   saveApiKey
 } from './api-credentials.js'
+import { BrowserEvidenceManager } from './browser-evidence.js'
 import { isAllowedMediaRequest } from './media-permissions.js'
 import { requestOpenAIComputerResponse, runComputerAgent } from './computer-agent.js'
 import { createMacOSInputHarness } from './macos-input.js'
@@ -49,6 +51,7 @@ import {
   createWorkflowPlan,
   executeComputerTask,
   executeWorkflowPlan,
+  listWorkflows,
   listScheduledTasks,
   listWorkflowHistory,
   readWorkflow,
@@ -77,6 +80,10 @@ function recordingsRoot(): string {
 
 function workflowsRoot(): string {
   return join(app.getPath('userData'), 'workflows')
+}
+
+function agentSessionsRoot(): string {
+  return join(app.getPath('userData'), 'agent-sessions')
 }
 
 const credentialCipher: CredentialCipher = {
@@ -350,7 +357,38 @@ function registerSettingsIpc(): void {
   })
 }
 
+let agentMcpServer: AgentMcpServer | null = null
+
+function registerAgentIpc(): void {
+  ipcMain.handle('agent:get-status', (event) => {
+    assertTrustedSender(event)
+    if (!agentMcpServer) throw new Error('The local agent connection is still starting.')
+    return agentMcpServer.status
+  })
+}
+
+async function startAgentMcpServer(): Promise<void> {
+  const manager = new BrowserEvidenceManager({
+    sessionsRoot: agentSessionsRoot(),
+    saveComputerWorkflow: (input) => saveWorkflow(workflowsRoot(), input)
+  })
+  const configuredPort = Number(process.env.TASKTAPE_MCP_PORT)
+  const port = process.env.TASKTAPE_E2E === '1' ? 0 : configuredPort || undefined
+  agentMcpServer = new AgentMcpServer({
+    manager,
+    runCheck: (workflowId) => runSavedTask(workflowId),
+    listChecks: () => listWorkflows(workflowsRoot()),
+    listRuns: () => listWorkflowHistory(workflowsRoot()),
+    port
+  })
+  await agentMcpServer.start()
+}
+
 function registerWorkflowIpc(): void {
+  ipcMain.handle('workflow:list', (event) => {
+    assertTrustedSender(event)
+    return listWorkflows(workflowsRoot())
+  })
   ipcMain.handle('workflow:choose-directory', async (event) => {
     assertTrustedSender(event)
     if (process.env.TASKTAPE_E2E === '1' && process.env.TASKTAPE_E2E_NATIVE_DIRECTORY !== '1') {
@@ -489,11 +527,17 @@ if (!hasSingleInstanceLock) {
     registerRecorderIpc()
     registerAnalysisIpc()
     registerSettingsIpc()
+    registerAgentIpc()
     registerWorkflowIpc()
     registerDisplayCapture()
     registerMediaPermissions()
     startWorkflowScheduler()
     createWindow()
+    void startAgentMcpServer().catch((error: unknown) => {
+      process.stderr.write(
+        `TaskTape MCP error: ${error instanceof Error ? error.message : 'Unknown error'}\n`
+      )
+    })
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
@@ -501,6 +545,7 @@ if (!hasSingleInstanceLock) {
 
   app.on('before-quit', () => {
     if (schedulerTimer) clearInterval(schedulerTimer)
+    void agentMcpServer?.stop()
   })
 
   app.on('window-all-closed', () => {
