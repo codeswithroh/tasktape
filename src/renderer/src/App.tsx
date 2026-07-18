@@ -75,7 +75,7 @@ export function App(): React.JSX.Element {
             onClick={() => setView('workflows')}
           >
             <Workflow size={17} />
-            Workflows
+            Checks
           </button>
           <button
             className={`nav-item ${view === 'history' ? 'active' : ''}`}
@@ -114,8 +114,8 @@ export function App(): React.JSX.Element {
             <div hidden={view !== 'workflows'}>
               <header className="workspace-header">
                 <div>
-                  <p className="eyebrow">Your workflows</p>
-                  <h1>Teach TaskTape a routine</h1>
+                  <p className="eyebrow">Replay checks</p>
+                  <h1>Turn a bug into a living check</h1>
                 </div>
                 <div className="header-actions">
                   {recorder.state === 'ready' ? (
@@ -155,7 +155,7 @@ export function App(): React.JSX.Element {
                           />
                           <div className="playback-details">
                             <div>
-                              <strong>Workflow recording</strong>
+                              <strong>Bug recording</strong>
                               <span>Captured on this Mac</span>
                             </div>
                             {recorder.metadata ? (
@@ -169,7 +169,7 @@ export function App(): React.JSX.Element {
                           <MonitorUp size={34} />
                           <strong>Recording</strong>
                           <time>{formatDuration(recorder.elapsedMs)}</time>
-                          <p>Complete the workflow in the screen or window you selected.</p>
+                          <p>Reproduce the bug in the screen or window you selected.</p>
                         </div>
                       ) : isBusy ? (
                         <div className="recording-live" aria-live="polite">
@@ -254,7 +254,7 @@ export function App(): React.JSX.Element {
                             <CircleDot size={13} />
                             Recording
                           </p>
-                          <h2 id="recorder-title">Perform the workflow</h2>
+                          <h2 id="recorder-title">Reproduce the bug</h2>
                           <p>
                             TaskTape is capturing the selected screen. Stop when the outcome is
                             complete.
@@ -280,7 +280,7 @@ export function App(): React.JSX.Element {
                           </h2>
                           <p>
                             {recorder.error ??
-                              'Record a workflow, then explain the outcome you want. TaskTape turns both into an editable recipe before anything runs.'}
+                              'Record a bug, then describe what should have happened. TaskTape turns both into a replayable check.'}
                           </p>
                           <button
                             className="record-button"

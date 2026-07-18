@@ -88,6 +88,8 @@ const credentialCipher: CredentialCipher = {
 const selectedCaptureSources = new Map<number, string>()
 const TEST_CAPTURE_THUMBNAIL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
+const TEST_RESULT_SCREENSHOT =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZxnEAAAAASUVORK5CYII='
 const TEST_INTENT_TRANSCRIPT =
   'Organize new assets using the structure I demonstrated every Monday at 9 AM, and leave anything unmatched in place.'
 
@@ -95,16 +97,25 @@ async function runComputerWorkflow(
   workflow: Extract<Awaited<ReturnType<typeof readWorkflow>>, { capability: 'computer' }>
 ): Promise<ComputerTaskResult> {
   if (process.env.TASKTAPE_E2E === '1') {
+    const verificationStatus =
+      process.env.TASKTAPE_E2E_VERIFICATION === 'failed' ? 'failed' : 'passed'
     return {
       output: 'Computer task completed.',
       actionLog: ['Completed the recorded computer task'],
       verification: workflow.expectedOutcome
         ? {
-            status: 'passed',
+            status: verificationStatus,
             expectedOutcome: workflow.expectedOutcome,
-            summary: 'The expected result is visible.',
-            evidence: ['The saved item retains the Video category.'],
-            screenshotDataUrl: TEST_CAPTURE_THUMBNAIL.replace('image/gif', 'image/png')
+            summary:
+              verificationStatus === 'passed'
+                ? 'The expected result is visible.'
+                : 'The saved item does not retain the expected category.',
+            evidence: [
+              verificationStatus === 'passed'
+                ? 'The saved item retains the Video category.'
+                : 'The saved item is labeled Uncategorized.'
+            ],
+            screenshotDataUrl: TEST_RESULT_SCREENSHOT
           }
         : null
     }

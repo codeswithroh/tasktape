@@ -1418,6 +1418,78 @@ h1 {
   list-style: none;
 }
 
+.run-activity {
+  margin-top: 20px;
+}
+
+.run-activity summary {
+  color: #526158;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.verification-result {
+  border: 1px solid #becbc2;
+  border-left: 4px solid #617068;
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 18px;
+}
+
+.verification-result.passed {
+  border-left-color: #187452;
+}
+
+.verification-result.failed {
+  border-left-color: #bd3f32;
+}
+
+.verification-result.inconclusive {
+  border-left-color: #8a6a24;
+}
+
+.verification-result > div > span,
+.expected-outcome-summary > span,
+.history-verification span {
+  color: #647168;
+  display: block;
+  font-size: 11px;
+  font-weight: 750;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.verification-result p,
+.expected-outcome-summary p,
+.history-verification p {
+  margin: 0;
+}
+
+.verification-result img {
+  aspect-ratio: 16 / 9;
+  background: #edf1ee;
+  border: 1px solid #c8d2cb;
+  display: block;
+  object-fit: contain;
+  width: 100%;
+}
+
+.verification-result ul {
+  color: #4f5c54;
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.expected-outcome-summary {
+  border-left: 2px solid #187452;
+  margin-top: 16px;
+  padding: 12px 14px;
+}
+
 .plan-actions li,
 .run-results li {
   display: grid;
@@ -1897,9 +1969,48 @@ h1 {
 }
 
 .history-status.partial,
-.history-status.failed {
+.history-status.failed,
+.history-status.inconclusive {
   color: #a13d28;
   background: #fff0eb;
+}
+
+.history-status.passed {
+  color: #187452;
+}
+
+.history-verification {
+  border-top: 1px solid #d6ddd8;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(180px, 0.7fr) 1fr;
+  padding: 18px 20px;
+}
+
+.history-verification img {
+  aspect-ratio: 16 / 9;
+  background: #edf1ee;
+  border: 1px solid #c8d2cb;
+  object-fit: contain;
+  width: 100%;
+}
+
+.history-verification strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.history-verification p {
+  color: #5f6c64;
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .history-verification {
+    grid-template-columns: 1fr;
+  }
 }
 
 .history-run-copy,
@@ -2429,8 +2540,13 @@ h1 {
 }
 
 .scheduled-run-status.partial,
-.scheduled-run-status.failed {
+.scheduled-run-status.failed,
+.scheduled-run-status.inconclusive {
   color: #a13d28;
+}
+
+.scheduled-run-status.passed {
+  color: #187452;
 }
 
 .scheduled-task-actions {

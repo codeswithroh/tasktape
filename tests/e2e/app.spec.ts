@@ -29,7 +29,7 @@ async function reachRecipeEditor(page: Page): Promise<void> {
   await page
     .getByLabel('Your description')
     .fill('Organize new assets using the same structure I demonstrated every Monday at 9 AM.')
-  await page.getByRole('button', { name: 'Review what TaskTape understood' }).click()
+  await page.getByRole('button', { name: 'Build replay check' }).click()
   await expect(page.getByRole('heading', { name: 'What TaskTape learned' })).toBeVisible()
 }
 
@@ -39,7 +39,9 @@ test('launches the isolated TaskTape shell', async () => {
   try {
     const page = await application.firstWindow()
     await expect(page).toHaveTitle('TaskTape')
-    await expect(page.getByRole('heading', { name: 'Teach TaskTape a routine' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Turn a bug into a living check' })
+    ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Start recording' })).toBeVisible()
 
     const bridge = await page.evaluate(() => window.tasktape.appInfo)
@@ -92,7 +94,7 @@ test('learns, saves, and runs a demonstrated asset workflow', async () => {
     await page.waitForTimeout(650)
     await page.getByRole('button', { name: 'Stop and save' }).click()
 
-    await expect(page.getByRole('heading', { name: 'Describe the result' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Describe the expected result' })).toBeVisible()
     await expect(page.getByTestId('recording-preview')).toBeVisible()
     await expect(page.getByTestId('frame-count')).toHaveText('1')
     const extractedFrame = page.getByTestId('key-frame')
@@ -113,7 +115,7 @@ test('learns, saves, and runs a demonstrated asset workflow', async () => {
       'Organize new assets the same way I demonstrated every Monday at 9 AM. Leave anything unrelated alone.'
     await page.getByLabel('Your description').fill(statedIntent)
     await page.screenshot({ path: 'output/playwright/voice-intent.png' })
-    await page.getByRole('button', { name: 'Review what TaskTape understood' }).click()
+    await page.getByRole('button', { name: 'Build replay check' }).click()
     await page.setViewportSize({ width: 1180, height: 760 })
 
     const learnedHeading = page.getByRole('heading', { name: 'What TaskTape learned' })
@@ -216,7 +218,7 @@ test('learns, saves, and runs a demonstrated asset workflow', async () => {
     await expect(page.getByText('1 updated', { exact: true })).toBeVisible()
     await page.screenshot({ path: 'output/playwright/run-history.png' })
 
-    await page.getByRole('button', { name: 'Workflows' }).click()
+    await page.getByRole('button', { name: 'Checks' }).click()
     await expect(page.getByRole('heading', { name: '3 items updated' })).toBeVisible()
     const newWorkflowButton = page.locator('.run-result').getByRole('button', { name: 'New task' })
     await page.locator('.workspace').evaluate((element) => element.scrollTo({ top: 0 }))
@@ -283,7 +285,7 @@ test('saves and runs a learned computer task', async () => {
     await page
       .getByLabel('Your description')
       .fill('Review my weekly project update and publish it to the team workspace.')
-    await page.getByRole('button', { name: 'Review what TaskTape understood' }).click()
+    await page.getByRole('button', { name: 'Build replay check' }).click()
 
     await expect(page.getByText('What TaskTape learned', { exact: true })).toBeVisible()
     await expect(page.getByText('Review the update', { exact: true })).toBeVisible()
@@ -301,10 +303,11 @@ test('saves and runs a learned computer task', async () => {
 
     await expect(page.getByText('Task saved', { exact: true })).toBeVisible()
     await expect(page.getByText('Starts in Browser', { exact: true })).toBeVisible()
-    await page.getByLabel('I reviewed the task instructions.').check()
+    await page.getByLabel('I reviewed the task and expected result.').check()
     await page.getByRole('button', { name: 'Run task' }).click()
-    await expect(page.getByText('Run completed', { exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: '1 item updated' })).toBeVisible()
+    await expect(page.getByText('Check passed', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Expected result confirmed' })).toBeVisible()
+    await expect(page.getByText('The expected result is visible.')).toBeVisible()
     await page.screenshot({ path: 'output/playwright/computer-task-complete.png' })
 
     await page.getByRole('button', { name: 'Scheduled' }).click()
@@ -327,6 +330,56 @@ test('saves and runs a learned computer task', async () => {
     await page.getByRole('button', { name: 'Run now' }).click()
     await expect(page.getByRole('heading', { name: 'Run history' })).toBeVisible()
     await expect(page.getByText('Publish weekly project update', { exact: true })).toHaveCount(2)
+  } finally {
+    await application.close()
+    await rm(userData, { recursive: true, force: true })
+  }
+})
+
+test('shows failed replay evidence and preserves it in history', async () => {
+  const { application, userData } = await launchTestApp({
+    TASKTAPE_E2E_ANALYSIS: 'computer',
+    TASKTAPE_E2E_VERIFICATION: 'failed'
+  })
+
+  try {
+    const page = await application.firstWindow()
+    await page.getByRole('button', { name: 'Start recording' }).click()
+    await page.getByRole('button', { name: 'Share window: Creator dashboard - Browser' }).click()
+    await page.waitForTimeout(150)
+    await page.getByRole('button', { name: 'Stop and save' }).click()
+    await page
+      .getByLabel('Your description')
+      .fill('Save the asset and confirm that it still has the Video category.')
+    await page.getByRole('button', { name: 'Build replay check' }).click()
+    await expect(page.locator('#expected-outcome')).toHaveValue(/visibly published/)
+    await page.getByLabel('On demand').check()
+    await page.getByRole('button', { name: 'Save task' }).click()
+    await page.getByLabel('I reviewed the task and expected result.').check()
+    await page.getByRole('button', { name: 'Run task' }).click()
+
+    await expect(page.getByText('Check failed', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Regression found' })).toBeVisible()
+    await expect(page.getByText('The saved item is labeled Uncategorized.')).toBeVisible()
+    await page.screenshot({ path: 'output/playwright/replay-regression-found.png' })
+
+    await page.getByRole('button', { name: 'View run history' }).click()
+    await expect(page.getByRole('heading', { name: 'Run history' })).toBeVisible()
+    await expect(
+      page.locator('.history-list').getByText('Regression found', { exact: true })
+    ).toBeVisible()
+    await page
+      .locator('.history-list details')
+      .first()
+      .evaluate((details) => {
+        details.open = true
+      })
+    await expect(
+      page
+        .locator('.history-list')
+        .getByText('The saved item does not retain the expected category.')
+    ).toBeVisible()
+    await page.screenshot({ path: 'output/playwright/replay-failed-history.png' })
   } finally {
     await application.close()
     await rm(userData, { recursive: true, force: true })
