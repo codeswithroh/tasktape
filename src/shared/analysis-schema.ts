@@ -83,7 +83,8 @@ export const learnedWorkflowProposalSchema = z.object({
   computerAutomation: z
     .object({
       instructions: z.string().min(1).max(2_000),
-      targetApp: z.string().min(1).max(120).nullable()
+      targetApp: z.string().min(1).max(120).nullable(),
+      expectedOutcome: z.string().min(1).max(500).nullable()
     })
     .nullable()
 })

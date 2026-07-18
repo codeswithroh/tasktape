@@ -279,6 +279,13 @@ export async function executeWorkflowPlan(
 export interface ComputerTaskResult {
   output: string
   actionLog: string[]
+  verification?: {
+    status: 'passed' | 'failed' | 'inconclusive'
+    expectedOutcome: string
+    summary: string
+    evidence: string[]
+    screenshotDataUrl: string
+  } | null
 }
 
 export type ComputerTaskRunner = (
@@ -298,8 +305,11 @@ export async function executeComputerTask(
   const startedAt = new Date().toISOString()
   let status: WorkflowRun['status'] = 'completed'
   let messages: string[]
+  let verification: WorkflowRun['verification'] = null
   try {
     const result = await runner(workflow)
+    verification = result.verification ?? null
+    if (verification?.status === 'failed') status = 'failed'
     messages = result.actionLog.length > 0 ? result.actionLog : [result.output || 'Task completed.']
   } catch (error) {
     status = 'failed'
@@ -330,6 +340,7 @@ export async function executeComputerTask(
     completedAt: new Date().toISOString(),
     status,
     trigger,
+    verification,
     results
   })
   await writeJson(join(workflowDirectory(root, workflow.id), 'runs', `${run.id}.json`), run)

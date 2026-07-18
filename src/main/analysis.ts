@@ -49,7 +49,9 @@ child-folder name without a slash. Infer sourceHint from a visible folder such a
 force video and image categories; return whichever asset groups the demonstration supports. Set computerAutomation
 to null for organize_files. Use capability computer when the workflow requires interacting with an application or
 website. For computer workflows, set fileOrganization to null and provide durable, complete task instructions plus
-the visible target application when known. Do not include a schedule inside the task instructions.
+the visible target application when known. When the user states what should be visible after the task, preserve it as
+a concise expectedOutcome that can be checked from a final screenshot. Otherwise use null. Do not include a schedule
+inside the task instructions.
 If the user states a run frequency or time, represent it in scheduleProposal. Weekdays use 0 for Sunday through 6
 for Saturday and times use local 24-hour HH:MM format. Use manual when the user explicitly wants on-demand runs. Set
 scheduleProposal to null when no schedule is stated. Never infer a schedule from the recording alone.

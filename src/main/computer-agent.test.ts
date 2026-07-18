@@ -50,7 +50,7 @@ describe('computer agent', () => {
 
     expect(harness.activateTarget).toHaveBeenCalledOnce()
     expect(harness.execute).toHaveBeenCalledWith({ type: 'screenshot' })
-    expect(harness.captureScreenshot).toHaveBeenCalledOnce()
+    expect(harness.captureScreenshot).toHaveBeenCalledTimes(2)
     expect(provider.mock.calls[0][0]).toEqual({
       model: COMPUTER_AGENT_MODEL,
       tools: [{ type: 'computer' }],
@@ -74,7 +74,8 @@ describe('computer agent', () => {
       output: 'Task complete.',
       actionLog: ['Inspect screen'],
       turns: 2,
-      responseId: 'resp-2'
+      responseId: 'resp-2',
+      finalScreenshot: screenshot
     })
   })
 

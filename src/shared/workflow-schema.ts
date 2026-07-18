@@ -53,7 +53,8 @@ const organizeFilesTaskFieldsSchema = commonTaskFieldsSchema.extend({
 
 const computerTaskFieldsSchema = commonTaskFieldsSchema.extend({
   capability: z.literal('computer'),
-  targetApp: z.string().trim().min(1).max(120).nullable()
+  targetApp: z.string().trim().min(1).max(120).nullable(),
+  expectedOutcome: z.string().trim().min(1).max(500).nullable().default(null)
 })
 
 const saveWorkflowFieldsSchema = z.discriminatedUnion('capability', [
@@ -178,6 +179,19 @@ export const workflowRunSchema = z.object({
   completedAt: z.string().datetime(),
   status: z.enum(['completed', 'partial', 'failed']),
   trigger: z.enum(['manual', 'schedule']).default('manual'),
+  verification: z
+    .object({
+      status: z.enum(['passed', 'failed', 'inconclusive']),
+      expectedOutcome: z.string().min(1).max(500),
+      summary: z.string().min(1).max(240),
+      evidence: z.array(z.string().min(1).max(180)).max(4),
+      screenshotDataUrl: z
+        .string()
+        .max(8_000_000)
+        .regex(/^data:image\/(?:jpeg|png);base64,[A-Za-z0-9+/]+=*$/)
+    })
+    .nullable()
+    .default(null),
   results: z.array(
     z.object({
       actionId: z.string().uuid(),
@@ -248,7 +262,7 @@ export const setScheduleEnabledInputSchema = z.object({
   enabled: z.boolean()
 })
 
-export type SaveWorkflowInput = z.infer<typeof saveWorkflowInputSchema>
+export type SaveWorkflowInput = z.input<typeof saveWorkflowInputSchema>
 export type SavedWorkflow = z.infer<typeof savedWorkflowSchema>
 export type WorkflowPlan = z.infer<typeof workflowPlanSchema>
 export type WorkflowRun = z.infer<typeof workflowRunSchema>

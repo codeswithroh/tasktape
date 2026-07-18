@@ -75,6 +75,7 @@ export interface ComputerAgentResult {
   actionLog: string[]
   turns: number
   responseId: string
+  finalScreenshot: string
 }
 
 export class ComputerSafetyReviewRequiredError extends Error {
@@ -156,11 +157,17 @@ export async function runComputerAgent({
     }
 
     if (calls.length === 0) {
+      onProgress('capturing final screen')
+      const finalScreenshot = await harness.captureScreenshot()
+      if (!finalScreenshot.startsWith('data:image/')) {
+        throw new Error('The computer harness returned an invalid final screenshot data URL.')
+      }
       return {
         output: extractFinalOutput(response),
         actionLog,
         turns: turn,
-        responseId: response.id
+        responseId: response.id,
+        finalScreenshot
       }
     }
 

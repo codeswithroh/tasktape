@@ -42,8 +42,10 @@ import {
 import { isAllowedMediaRequest } from './media-permissions.js'
 import { requestOpenAIComputerResponse, runComputerAgent } from './computer-agent.js'
 import { createMacOSInputHarness } from './macos-input.js'
+import { evaluateComputerOutcome, requestOpenAIOutcomeEvaluation } from './outcome-evaluator.js'
 import { removeRecording, saveRecording } from './recordings.js'
 import {
+  type ComputerTaskResult,
   createWorkflowPlan,
   executeComputerTask,
   executeWorkflowPlan,
@@ -91,11 +93,20 @@ const TEST_INTENT_TRANSCRIPT =
 
 async function runComputerWorkflow(
   workflow: Extract<Awaited<ReturnType<typeof readWorkflow>>, { capability: 'computer' }>
-): Promise<{ output: string; actionLog: string[] }> {
+): Promise<ComputerTaskResult> {
   if (process.env.TASKTAPE_E2E === '1') {
     return {
       output: 'Computer task completed.',
-      actionLog: ['Completed the recorded computer task']
+      actionLog: ['Completed the recorded computer task'],
+      verification: workflow.expectedOutcome
+        ? {
+            status: 'passed',
+            expectedOutcome: workflow.expectedOutcome,
+            summary: 'The expected result is visible.',
+            evidence: ['The saved item retains the Video category.'],
+            screenshotDataUrl: TEST_CAPTURE_THUMBNAIL.replace('image/gif', 'image/png')
+          }
+        : null
     }
   }
   const credential = await resolveApiKey(
@@ -110,7 +121,7 @@ async function runComputerWorkflow(
   taskTapeWindow?.hide()
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 250))
   try {
-    return await runComputerAgent({
+    const result = await runComputerAgent({
       task: workflow.instructions,
       harness: createMacOSInputHarness({
         targetApp: workflow.targetApp ?? undefined
@@ -121,6 +132,26 @@ async function runComputerWorkflow(
           ? (event) => process.stderr.write(`TaskTape computer: ${event}\n`)
           : undefined
     })
+    const verification = workflow.expectedOutcome
+      ? await evaluateComputerOutcome(
+          {
+            expectedOutcome: workflow.expectedOutcome,
+            screenshotDataUrl: result.finalScreenshot
+          },
+          (input) => requestOpenAIOutcomeEvaluation(input, credential.apiKey ?? undefined)
+        )
+      : null
+    return {
+      output: result.output,
+      actionLog: result.actionLog,
+      verification: verification
+        ? {
+            ...verification,
+            expectedOutcome: workflow.expectedOutcome ?? '',
+            screenshotDataUrl: result.finalScreenshot
+          }
+        : null
+    }
   } finally {
     if (wasVisible) {
       taskTapeWindow?.show()
