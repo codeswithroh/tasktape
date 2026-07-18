@@ -27,10 +27,10 @@ export function IntentCapture({
   return (
     <div className="intent-capture" aria-busy={analyzing || isTranscribing}>
       <p className="step-label">Step 2 of 3</p>
-      <h2 id="recorder-title">Describe the result</h2>
+      <h2 id="recorder-title">Describe the expected result</h2>
       <p className="intent-intro">
-        Tell TaskTape what you were trying to accomplish. Speak naturally and include anything the
-        recording might not make clear.
+        Say what should have happened after the steps you recorded. Include any detail the screen
+        does not make clear.
       </p>
 
       <label htmlFor="workflow-intent">Your description</label>
@@ -39,7 +39,7 @@ export function IntentCapture({
           id="workflow-intent"
           value={voice.transcript}
           onChange={(event) => voice.setTranscript(event.target.value)}
-          placeholder="For example: Follow the same steps each Monday at 9 AM and leave anything unrelated alone."
+          placeholder="For example: After Save, the asset should still show the Video category. Run this check every day at 9 AM."
           rows={6}
           disabled={isListening || isTranscribing}
         />
@@ -101,7 +101,7 @@ export function IntentCapture({
 
       <p className="intent-privacy">
         Your voice note is sent for transcription. Its text and selected recording frames help
-        TaskTape understand the workflow.
+        TaskTape build and verify the replay check.
       </p>
 
       <button
@@ -111,7 +111,7 @@ export function IntentCapture({
         onClick={() => onSubmit(voice.transcript.trim())}
       >
         {analyzing ? <LoaderCircle className="spinner" size={17} /> : null}
-        {analyzing ? 'Reviewing workflow' : 'Review what TaskTape understood'}
+        {analyzing ? 'Building replay check' : 'Build replay check'}
       </button>
     </div>
   )

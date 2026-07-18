@@ -2,6 +2,7 @@ import { Check, Eye, EyeOff, KeyRound, LoaderCircle, Save, Trash2 } from 'lucide
 import { useEffect, useState } from 'react'
 
 import type { ApiKeyStatus } from '../../../shared/contracts'
+import { AgentConnectionSettings } from './AgentConnectionSettings'
 
 function statusCopy(status: ApiKeyStatus | null): string {
   if (!status) return 'Checking credential status'
@@ -68,7 +69,7 @@ export function ApiKeySettings(): React.JSX.Element {
       <header className="workspace-header">
         <div>
           <p className="eyebrow">Settings</p>
-          <h1>OpenAI connection</h1>
+          <h1>Connections</h1>
         </div>
         <div className="local-status">
           <span />
@@ -76,74 +77,77 @@ export function ApiKeySettings(): React.JSX.Element {
         </div>
       </header>
 
-      <section className="settings-panel" aria-labelledby="api-key-title">
-        <div className="settings-heading">
-          <span className="settings-icon">
-            <KeyRound size={20} />
-          </span>
-          <div>
-            <h2 id="api-key-title">API key</h2>
-            <p>Used only by TaskTape's main process when analyzing a recording.</p>
+      <div className="settings-stack">
+        <AgentConnectionSettings />
+        <section className="settings-panel" aria-labelledby="api-key-title">
+          <div className="settings-heading">
+            <span className="settings-icon">
+              <KeyRound size={20} />
+            </span>
+            <div>
+              <h2 id="api-key-title">API key</h2>
+              <p>Used only by TaskTape's main process when analyzing a recording.</p>
+            </div>
+            <span className={`credential-status source-${status?.source ?? 'loading'}`}>
+              {status?.configured ? <Check size={13} /> : <KeyRound size={13} />}
+              {statusCopy(status)}
+            </span>
           </div>
-          <span className={`credential-status source-${status?.source ?? 'loading'}`}>
-            {status?.configured ? <Check size={13} /> : <KeyRound size={13} />}
-            {statusCopy(status)}
-          </span>
-        </div>
 
-        <form
-          className="key-form"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void saveKey()
-          }}
-        >
-          <label htmlFor="openai-api-key">OpenAI API key</label>
-          <div className="secret-input">
-            <input
-              id="openai-api-key"
-              type={visible ? 'text' : 'password'}
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-              placeholder="sk-proj-..."
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <button
-              type="button"
-              onClick={() => setVisible((current) => !current)}
-              aria-label={visible ? 'Hide API key' : 'Show API key'}
-              title={visible ? 'Hide API key' : 'Show API key'}
-            >
-              {visible ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-          <p className="field-note">
-            Saving a new key replaces the app-managed key. The value is never shown again.
-          </p>
-          {error ? <p className="settings-message error-message">{error}</p> : null}
-          {message ? <p className="settings-message">{message}</p> : null}
-          <div className="settings-actions">
-            <button
-              className="record-button save-key-button"
-              type="submit"
-              disabled={busy || !apiKey}
-            >
-              {busy ? <LoaderCircle className="spinner" size={16} /> : <Save size={16} />}
-              Save key
-            </button>
-            <button
-              className="remove-key-button"
-              type="button"
-              disabled={busy || status?.source !== 'app'}
-              onClick={() => void clearKey()}
-            >
-              <Trash2 size={16} />
-              Remove app key
-            </button>
-          </div>
-        </form>
-      </section>
+          <form
+            className="key-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void saveKey()
+            }}
+          >
+            <label htmlFor="openai-api-key">OpenAI API key</label>
+            <div className="secret-input">
+              <input
+                id="openai-api-key"
+                type={visible ? 'text' : 'password'}
+                value={apiKey}
+                onChange={(event) => setApiKey(event.target.value)}
+                placeholder="sk-proj-..."
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button
+                type="button"
+                onClick={() => setVisible((current) => !current)}
+                aria-label={visible ? 'Hide API key' : 'Show API key'}
+                title={visible ? 'Hide API key' : 'Show API key'}
+              >
+                {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <p className="field-note">
+              Saving a new key replaces the app-managed key. The value is never shown again.
+            </p>
+            {error ? <p className="settings-message error-message">{error}</p> : null}
+            {message ? <p className="settings-message">{message}</p> : null}
+            <div className="settings-actions">
+              <button
+                className="record-button save-key-button"
+                type="submit"
+                disabled={busy || !apiKey}
+              >
+                {busy ? <LoaderCircle className="spinner" size={16} /> : <Save size={16} />}
+                Save key
+              </button>
+              <button
+                className="remove-key-button"
+                type="button"
+                disabled={busy || status?.source !== 'app'}
+                onClick={() => void clearKey()}
+              >
+                <Trash2 size={16} />
+                Remove app key
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
     </>
   )
 }

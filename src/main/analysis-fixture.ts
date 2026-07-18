@@ -97,7 +97,8 @@ export const TEST_COMPUTER_WORKFLOW_ANALYSIS: WorkflowAnalysis = {
     computerAutomation: {
       instructions:
         'Open the team workspace, review the drafted weekly project update, and publish it after confirming the content is accurate.',
-      targetApp: 'Browser'
+      targetApp: 'Browser',
+      expectedOutcome: 'The approved weekly project update is visibly published in the workspace.'
     }
   },
   scheduleProposal: null,

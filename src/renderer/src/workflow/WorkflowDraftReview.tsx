@@ -70,6 +70,7 @@ export function WorkflowDraftReview({
   const [instructions, setInstructions] = useState(
     computerAutomation?.instructions ?? analysis.goalHypothesis
   )
+  const [expectedOutcome, setExpectedOutcome] = useState(computerAutomation?.expectedOutcome ?? '')
   const [sourceDirectory, setSourceDirectory] = useState('')
   const [workflow, setWorkflow] = useState<SavedWorkflow | null>(null)
   const [plan, setPlan] = useState<WorkflowPlan | null>(null)
@@ -126,7 +127,8 @@ export function WorkflowDraftReview({
         instructions,
         approvalMode: runWhen === 'manual' ? 'review_each_run' : 'allow_unattended',
         capability: 'computer',
-        targetApp: computerAutomation.targetApp
+        targetApp: computerAutomation.targetApp,
+        expectedOutcome: expectedOutcome.trim() || null
       }
     } else {
       if (!organization) {
@@ -216,27 +218,66 @@ export function WorkflowDraftReview({
 
   if (run) {
     const completed = run.results.filter((result) => result.status === 'completed').length
+    const verification = run.verification
+    const verificationHeading =
+      verification?.status === 'passed'
+        ? 'Expected result confirmed'
+        : verification?.status === 'failed'
+          ? 'Regression found'
+          : verification?.status === 'inconclusive'
+            ? 'Result needs review'
+            : `${completed} ${completed === 1 ? 'item' : 'items'} updated`
+    const resultSucceeded = verification
+      ? verification.status === 'passed'
+      : run.status === 'completed'
     return (
       <div className="workflow-draft run-result">
-        <p className={`step-label ${run.status === 'completed' ? 'success-label' : 'error-label'}`}>
-          {run.status === 'completed' ? <Check size={13} /> : <AlertCircle size={13} />}
-          Run {run.status}
+        <p className={`step-label ${resultSucceeded ? 'success-label' : 'error-label'}`}>
+          {resultSucceeded ? <Check size={13} /> : <AlertCircle size={13} />}
+          {verification
+            ? verification.status === 'passed'
+              ? 'Check passed'
+              : verification.status === 'failed'
+                ? 'Check failed'
+                : 'Check inconclusive'
+            : `Run ${run.status}`}
         </p>
         <h2 id="recorder-title" ref={headingRef} tabIndex={-1}>
-          {completed} {completed === 1 ? 'item' : 'items'} updated
+          {verificationHeading}
         </h2>
-        <p className="intent-intro">The run is complete and saved in your history.</p>
-        <ul className="run-results" aria-label="Workflow activity">
-          {run.results.map((result) => (
-            <li key={result.actionId} className={result.status}>
-              {result.status === 'completed' ? <Check size={15} /> : <AlertCircle size={15} />}
-              <div>
-                <strong>{fileName(result.sourcePath)}</strong>
-                <span>{result.message}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <p className="intent-intro">
+          {verification?.summary ?? 'The run is complete and saved in your history.'}
+        </p>
+        {verification ? (
+          <section className={`verification-result ${verification.status}`}>
+            <div>
+              <span>Expected result</span>
+              <p>{cleanText(verification.expectedOutcome)}</p>
+            </div>
+            <img src={verification.screenshotDataUrl} alt="Final screen used for this check" />
+            {verification.evidence.length > 0 ? (
+              <ul aria-label="Visible evidence">
+                {verification.evidence.map((item, index) => (
+                  <li key={`${item}-${index}`}>{cleanText(item)}</li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+        ) : null}
+        <details className="run-activity">
+          <summary>{verification ? 'View replay activity' : 'View activity'}</summary>
+          <ul className="run-results" aria-label="Workflow activity">
+            {run.results.map((result) => (
+              <li key={result.actionId} className={result.status}>
+                {result.status === 'completed' ? <Check size={15} /> : <AlertCircle size={15} />}
+                <div>
+                  <strong>{fileName(result.sourcePath)}</strong>
+                  <span>{result.message}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </details>
 
         <section className="completion-actions" aria-labelledby="next-step-title">
           <div>
@@ -313,6 +354,13 @@ export function WorkflowDraftReview({
           </div>
         ) : null}
 
+        {workflow.capability === 'computer' && workflow.expectedOutcome ? (
+          <div className="expected-outcome-summary">
+            <span>Expected result</span>
+            <p>{cleanText(workflow.expectedOutcome)}</p>
+          </div>
+        ) : null}
+
         {schedule ? (
           <div className="saved-schedule">
             <CalendarClock size={15} />
@@ -374,7 +422,9 @@ export function WorkflowDraftReview({
             />
             <span>
               {workflow.capability === 'computer'
-                ? 'I reviewed the task instructions.'
+                ? workflow.expectedOutcome
+                  ? 'I reviewed the task and expected result.'
+                  : 'I reviewed the task instructions.'
                 : 'I reviewed these changes.'}
             </span>
           </label>
@@ -470,6 +520,25 @@ export function WorkflowDraftReview({
           required
           rows={4}
         />
+
+        {isComputerTask ? (
+          <>
+            <label htmlFor="expected-outcome">Expected result</label>
+            <textarea
+              id="expected-outcome"
+              value={expectedOutcome}
+              onChange={(event) => {
+                setExpectedOutcome(event.target.value)
+                setError(null)
+              }}
+              placeholder="What should be visible when this check passes?"
+              rows={3}
+            />
+            <p className="field-note">
+              TaskTape checks this against the final screen after replay.
+            </p>
+          </>
+        ) : null}
 
         {!isComputerTask && organization ? (
           <section className="access-section" aria-labelledby="folder-access-title">

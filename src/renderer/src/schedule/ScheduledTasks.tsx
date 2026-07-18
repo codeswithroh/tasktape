@@ -71,6 +71,13 @@ function statusLabel(status: WorkflowRun['status']): string {
   return 'Failed'
 }
 
+function runStatusLabel(run: WorkflowRun): string {
+  if (!run.verification) return statusLabel(run.status)
+  if (run.verification.status === 'passed') return 'Passed'
+  if (run.verification.status === 'failed') return 'Regression found'
+  return 'Needs review'
+}
+
 export function ScheduledTasks({ onCreateNew, onRunNow }: ScheduledTasksProps): React.JSX.Element {
   const [tasks, setTasks] = useState<ScheduledTask[]>([])
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -189,7 +196,7 @@ export function ScheduledTasks({ onCreateNew, onRunNow }: ScheduledTasksProps): 
         <div className="scheduled-state">
           <CalendarClock size={23} />
           <h2>No scheduled tasks</h2>
-          <p>Create a workflow and choose when it should run.</p>
+          <p>Create a check or task and choose when it should run.</p>
           <button className="primary-action" type="button" onClick={onCreateNew}>
             <Plus size={16} />
             New task
@@ -254,13 +261,16 @@ export function ScheduledTasks({ onCreateNew, onRunNow }: ScheduledTasksProps): 
                       <dd>
                         {lastRun ? (
                           <>
-                            <span className={`scheduled-run-status ${lastRun.status}`}>
-                              {lastRun.status === 'completed' ? (
+                            <span
+                              className={`scheduled-run-status ${lastRun.verification?.status ?? lastRun.status}`}
+                            >
+                              {(lastRun.verification?.status ?? lastRun.status) === 'passed' ||
+                              (!lastRun.verification && lastRun.status === 'completed') ? (
                                 <Check size={12} />
                               ) : (
                                 <AlertCircle size={12} />
                               )}
-                              {statusLabel(lastRun.status)}
+                              {runStatusLabel(lastRun)}
                             </span>
                             <time dateTime={lastRun.completedAt}>
                               {formatRunDate(lastRun.completedAt)}

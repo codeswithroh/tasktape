@@ -125,6 +125,47 @@ Verified result:
 
 - Deterministic and Electron gates pass. An opt-in live test activated a disposable local browser page, used OpenAI computer use to click and type the exact verification phrase, confirmed the DOM value, persisted a completed run, and reached Run history in 14.6 seconds.
 
+## Milestone 4D: TaskTape Replay outcome checks - Complete July 18
+
+Deliverables:
+
+- Editable expected outcome learned from the recording and user explanation.
+- Schema-bound visual evaluator for the final replay screenshot.
+- Passed, failed, and inconclusive results with screenshot evidence.
+- Regression-focused completion and history views.
+- Disposable broken and fixed browser target for a repeatable demo.
+
+Exit gate:
+
+- The same live learned check runs against broken and fixed target states, correctly reports a regression and a pass, persists both evidence records, and displays both in Run history.
+
+Verified result:
+
+- The paired OpenAI-driven desktop test passed in 1 minute 42 seconds on July 18. The broken target was classified as failed because the saved asset became Uncategorized. The fixed target was classified as passed because the saved asset retained Video. Both final screenshots and verdicts were persisted and surfaced in history.
+
+## Milestone 4E: Agent-operated Replay through MCP - Complete July 18
+
+Deliverables:
+
+- Loopback-only MCP server embedded in the TaskTape desktop process.
+- Headed instrumented browser for local development URLs.
+- Accessible browser action tools with trace, screenshot, console, and network capture.
+- Deterministic compilation from a completed evidence session into a saved Replay check.
+- Shared desktop state showing active agent sessions and agent-created checks.
+- Copyable Claude Code and Codex connection commands.
+
+Exit gate:
+
+- A real external MCP client connects to packaged TaskTape, launches the disposable broken target, records the failing interaction, persists the evidence bundle, creates a visible check, and retrieves it through the protocol.
+
+Verified result:
+
+- The source and packaged-app journeys both passed. The packaged application exposed 12 tools, observed the Uncategorized regression, wrote a non-empty Playwright trace and final screenshot, compiled the session into a review-required check, and returned that check through `list_checks`.
+
+Current boundary:
+
+- Agent capture supports local browser applications, one active session, and an installed Chrome runtime. General desktop instrumentation, remote staging URLs, CI workers, and direct GitHub issue ingestion remain post-hackathon work.
+
 ## Milestone 5: Product polish and submission - July 19-20
 
 Deliverables:

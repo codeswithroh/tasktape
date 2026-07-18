@@ -18,6 +18,14 @@ The hackathon version should narrow that primitive to one painful event: a produ
 
 **Confidence: 82/100.** The technical foundation and product experience are unusually complete. The unresolved risk is that the current runner reports task completion but does not yet evaluate an explicit expected outcome as pass or fail.
 
+## July 18 implementation update
+
+The outcome-verification risk above is resolved, and the submission interaction is stronger than the original recommendation. TaskTape now exposes a loopback-only MCP server so Claude Code or Codex can operate an instrumented local browser, reproduce the bug, and create the regression check directly. The agent capture includes ordered actions, screenshots, DOM snapshots, console events, network failures, and a Playwright trace.
+
+This follows Palmier's proven product pattern: the desktop application owns canonical local state while external agents operate native product tools through MCP. TaskTape applies that interaction to debugging rather than video editing. The packaged reference path has been verified through a real MCP client and should become the opening demo, while human narration remains the second input path.
+
+Current verified baseline: 61 unit and integration tests, 10 Electron journeys, a packaged MCP capture, 10 consecutive live visual evaluations, and one paired live computer replay against broken and fixed targets.
+
 ## Hackathon intelligence brief
 
 ### Confirmed facts
@@ -187,7 +195,7 @@ When a product engineer receives a screen recording of a bug, TaskTape Replay us
 
 ### Core loop
 
-**Record -> explain -> replay -> verify**
+**Reproduce -> capture context -> compile -> replay -> verify**
 
 ### Why now
 
@@ -197,18 +205,19 @@ Screen recordings are a common bug-report artifact, while computer-use models ca
 
 Use a disposable local web app with a seeded regression. Do not demo Downloads organization.
 
-| Time      | Demonstration                                                                                                                                                     |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0:00-0:15 | Show the bug: submitting a creator asset form loses the selected category. Say, “This recording usually dies in a ticket.”                                        |
-| 0:15-0:35 | Click Record in TaskTape Replay, reproduce the bug, and state the expected outcome: the saved item must retain “Video.”                                           |
-| 0:35-1:20 | Stop. GPT-5.6 produces a concise recipe and an editable assertion: “After Save, the item appears with category Video.” Show observed evidence and the target app. |
-| 1:20-2:00 | Run the check against the broken version. GPT-5.6 replays the interaction. The result is **Failed**, with final screenshot and mismatch evidence.                 |
-| 2:00-2:30 | Switch the disposable app to the fixed state and run again. The same check returns **Passed**. Show both runs in history.                                         |
-| 2:30-3:00 | Show daily scheduling, then briefly show the public repo, 49 tests, 8 desktop journeys, and the Codex commit trail. Close with the one sentence below.            |
+| Time      | Demonstration                                                                                                                                                                                                               |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0:00-0:15 | Show the bug: submitting a creator asset form loses the selected category. Say, “A video shows the symptom, but the engineer still has to reproduce everything.”                                                            |
+| 0:15-0:35 | Open TaskTape Settings and show the Codex MCP connection. Ask Codex: “Reproduce this local category bug and turn it into a Replay check. The saved item must retain Video.”                                                 |
+| 0:35-1:10 | Codex starts a TaskTape bug session and clicks Save. Show the live session in TaskTape, then the captured `Uncategorized` state. Briefly reveal the trace evidence: actions, screenshot, DOM, console, and network context. |
+| 1:10-1:35 | Codex finishes the session. The check appears immediately in TaskTape with editable expected outcome and explicit run control.                                                                                              |
+| 1:35-2:10 | Run the check against the broken version. GPT-5.6 computer use replays it and returns **Failed**, with final screenshot and mismatch evidence.                                                                              |
+| 2:10-2:35 | Switch the disposable app to the fixed state and run again. The same expected outcome returns **Passed**. Show both runs in history.                                                                                        |
+| 2:35-3:00 | Show scheduling, then the public repo, 61 tests, 10 desktop journeys, packaged MCP proof, and the Codex commit trail. Close with the one sentence below.                                                                    |
 
 One sentence to remember:
 
-> The bug recording is no longer evidence that expires. It is the regression check.
+> The agent's bug reproduction is no longer context that disappears. It is the regression check.
 
 The 10-second clip: the same learned check changes from red **Failed** to green **Passed**, with two final-state screenshots.
 
@@ -218,11 +227,12 @@ Fallback: record the entire final demo twice and use the cleaner take. Keep a pr
 
 ## Minimal architecture change
 
-| GPT-5.6 capability                          | Product role                            | Visible proof                         | Location                                 |
-| ------------------------------------------- | --------------------------------------- | ------------------------------------- | ---------------------------------------- |
-| Image understanding plus structured outputs | Infer replay steps and expected outcome | Editable recipe and assertion         | `src/main/analysis.ts` and shared schema |
-| Computer use                                | Replay the workflow against current UI  | Live cursor actions and action log    | `src/main/computer-agent.ts`             |
-| Image understanding plus structured outputs | Evaluate final state against assertion  | Pass or fail with screenshot evidence | New outcome evaluator in main process    |
+| Capability                                   | Product role                                      | Visible proof                          | Location                                 |
+| -------------------------------------------- | ------------------------------------------------- | -------------------------------------- | ---------------------------------------- |
+| MCP and Playwright instrumentation           | Let Codex reproduce and capture the bug           | Live session, trace, and created check | `src/main/agent-mcp.ts`                  |
+| GPT-5.6 computer use                         | Replay the saved workflow against the current UI  | Live cursor actions and action log     | `src/main/computer-agent.ts`             |
+| GPT-5.6 image understanding and typed output | Evaluate the final screen against the expectation | Pass or fail with screenshot evidence  | `src/main/outcome-evaluator.ts`          |
+| GPT-5.6 multimodal structured analysis       | Support the human-recorded alternative path       | Editable recipe and expected result    | `src/main/analysis.ts` and shared schema |
 
 ### Must be real
 
@@ -314,21 +324,21 @@ The README must then show: what changed during Build Week, exact GPT-5.6 integra
 
 ### 15 seconds
 
-“A bug recording usually becomes a ticket and then expires. TaskTape Replay uses GPT-5.6 to understand the recording, replay it on the real interface, and turn the expected outcome into a visual regression check.”
+“Ask Codex to reproduce a bug through TaskTape. It captures the actions, screen, DOM, console, and network context, then GPT-5.6 replays that reproduction as a permanent visual regression check.”
 
 ### 30 seconds
 
-“A support teammate records a bug, but an engineer still has to reproduce it, write a test, and maintain that test. TaskTape Replay takes the recording and the teammate's explanation, uses GPT-5.6 to create a bounded check, replays it with computer use, and reports a visual pass or fail result. The same check can run again on a schedule, so the original evidence keeps protecting the product.”
+“A bug video still leaves an engineer to reproduce the failure, inspect the console and network, and write a test. TaskTape gives Codex and Claude an instrumented browser through MCP. The agent reproduces the issue once, TaskTape saves the complete evidence and creates a reviewable check, then GPT-5.6 replays it and reports a visual pass or fail result.”
 
 ### 90 seconds
 
-“This form loses the category after Save. I can record the failure in TaskTape Replay and simply say what should have happened. GPT-5.6 reads the selected frames and my intent, then returns an editable replay plan and one explicit assertion. I approve it, and GPT-5.6 computer use performs the task against the real app. On the broken build, the assertion fails and TaskTape stores the final screenshot. On the fixed build, the same task passes. The check can run daily, and every result stays in local history. Codex helped build and verify the native recorder, schema boundaries, computer adapter, scheduler, and desktop tests. The current repository contains 49 unit and integration tests, 8 Electron journeys, and a separately verified live computer-use test. TaskTape Replay turns passive bug evidence into a check that keeps working.”
+“This form loses the selected category after Save. I ask Codex to reproduce it through TaskTape's local MCP server. TaskTape launches an instrumented browser, and while Codex investigates it records every action with screenshots, DOM snapshots, console messages, and network failures. When Codex finishes, that reproduction appears in TaskTape as a reviewable check with one explicit expected result. GPT-5.6 computer use performs the saved task against the real app. On the broken build, visual evaluation fails and stores the final screenshot. On the fixed build, the same expected result passes. The check can run again on a schedule, and every result stays in local history. The repository has 61 unit and integration tests, 10 Electron journeys, packaged MCP proof, and separately verified live GPT-5.6 replay and evaluation gates. TaskTape turns an agent's temporary debugging context into a check that keeps protecting the product.”
 
 ## Hard judge questions
 
 1. **Is this just Power Automate?** No. Power Automate generates a workflow. This demo generates an expected outcome, replays the bug, and produces pass or fail evidence.
-2. **Is this just BugBug or Momentic?** They are strong browser-test products. TaskTape starts with a narrated bug recording and targets cross-app visual workflows without authored selectors.
-3. **How much does the video contribute?** Selected frames ground visible application state; the user's narration supplies intent. We do not claim full action-trace reconstruction.
+2. **Is this just BugBug or Momentic?** They are strong browser-test products. TaskTape lets the developer's existing coding agent reproduce the issue through MCP, captures the investigation context, and then uses GPT-5.6 for adaptive visual replay and judgment.
+3. **Is video still required?** No. A person can record and narrate the bug, or an external agent can create a richer browser evidence session. Both produce the same check model.
 4. **Why is GPT-5.6 necessary?** It performs multimodal interpretation, adaptive computer replay, and visual outcome evaluation.
 5. **Could a smaller model do it?** Possibly for simpler pieces, but the submitted path uses GPT-5.6 because computer use and visual judgment are central.
 6. **What is deterministic?** Schemas, persistence, scheduling, filesystem boundaries, action validation, and the target app state.
@@ -336,14 +346,14 @@ The README must then show: what changed during Build Week, exact GPT-5.6 integra
 8. **How do you prevent destructive actions?** Typed capability schemas, user review, bounded actions, turn limits, target app activation, pending safety-check stopping, and separate unattended-run consent.
 9. **Can it test any application?** No. The hackathon proves one complete browser workflow and a bounded macOS execution path.
 10. **What happens when the UI changes?** GPT-5.6 reasons over the current screen instead of replaying fixed coordinates, but major changes can still fail and are reported.
-11. **Does it capture passwords?** Recordings are local by default, and users are warned not to expose secrets. API keys use operating-system encryption.
-12. **Why not generate Playwright?** The target is a demonstrated visual cross-app workflow, including interfaces without a DOM. Code export is future work.
+11. **Does it capture passwords?** Agent sessions reject password-field fills, accept only local development URLs, and remain local. API keys use operating-system encryption. Human recordings still require the user to avoid exposing secrets.
+12. **Why not generate Playwright?** TaskTape already uses Playwright for rich capture, but GPT-5.6 replay adapts to the current visual interface and can later extend beyond DOM-only targets. Exportable Playwright tests are future work.
 13. **Does scheduling run while the Mac sleeps?** No. The app must be open and the Mac awake.
 14. **What happens on a model safety check?** The run stops before the flagged action executes.
 15. **What did Codex build?** The repo documents the iterative native recorder, schemas, execution adapters, scheduler, tests, and design revisions in dated commits.
 16. **What existed before Build Week?** Nothing in this repository. The first planning commit is dated July 14, inside the submission period.
 17. **What is mocked?** Automated Electron tests mock model responses. The separate live tests use the real OpenAI API and are labeled.
-18. **How reliable is it?** The deterministic suite and desktop journeys pass; the demo workflow must still complete a repeated live reliability gate.
+18. **How reliable is it?** All 61 unit and integration tests and 10 Electron journeys pass. The visual evaluator classified five consecutive broken and fixed pairs correctly, and the paired live replay produced the expected fail and pass results.
 19. **What is the business wedge?** Product and support teams that collect bug videos but lack time to convert every issue into regression coverage.
 20. **What comes next?** Exportable test artifacts, CI triggers, richer event traces, signed builds, and an open evaluation format for computer-use agents.
 

@@ -1,37 +1,36 @@
 import { _electron as electron, chromium, expect, test } from '@playwright/test'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-const expectedText = 'TaskTape live computer test 2026-07-17.'
+const expectedOutcome =
+  'After Save, the item titled Launch clip appears in Saved assets with the category Video.'
 
 test.skip(
   process.env.TASKTAPE_LIVE_COMPUTER !== '1',
   'Set TASKTAPE_LIVE_COMPUTER=1 to run a real local computer task.'
 )
 
-test('runs one bounded task in a disposable local browser page', async () => {
-  const userData = await mkdtemp(join(tmpdir(), 'tasktape-live-computer-'))
-  const browser = await chromium.launch({ headless: false })
-  const targetPage = await browser.newPage({ viewport: null })
-  await targetPage.setContent(`
-    <!doctype html>
-    <html>
-      <head><title>TaskTape Live Target</title></head>
-      <body style="font-family: system-ui; padding: 80px;">
-        <label for="target" style="display: block; font-size: 24px; margin-bottom: 16px;">
-          Verification text
-        </label>
-        <textarea
-          id="target"
-          autofocus
-          aria-label="Verification text"
-          style="width: 720px; height: 220px; padding: 20px; font-size: 22px;"
-        ></textarea>
-      </body>
-    </html>
-  `)
-  await targetPage.bringToFront()
+test('replays and verifies the same broken and fixed desktop workflow', async () => {
+  test.setTimeout(300_000)
+  const userData = await mkdtemp(join(tmpdir(), 'tasktape-live-replay-'))
+  const browser = await chromium.launch({ headless: false, args: ['--kiosk'] })
+  const brokenPage = await browser.newPage({ viewport: null })
+  const fixedPage = await browser.newPage({ viewport: null })
+  const targetHtml = await readFile(resolve('tests/fixtures/replay-target.html'), 'utf8')
+
+  const prepareTarget = async (
+    targetPage: typeof brokenPage,
+    mode: 'broken' | 'fixed'
+  ): Promise<void> => {
+    await targetPage.setContent(targetHtml.replace('<body>', `<body data-mode="${mode}">`), {
+      waitUntil: 'load'
+    })
+  }
+
+  await prepareTarget(brokenPage, 'broken')
+  await prepareTarget(fixedPage, 'fixed')
+  await brokenPage.bringToFront()
 
   const application = await electron.launch({
     args: [resolve('.')],
@@ -46,44 +45,67 @@ test('runs one bounded task in a disposable local browser page', async () => {
 
   try {
     const page = await application.firstWindow()
-    const workflowId = await page.evaluate(async () => {
-      const workflow = await window.tasktape.workflow.save({
-        name: 'Browser live verification',
-        goal: 'Type the verification phrase in the blank local browser page.',
-        instructions:
-          'In the local browser page titled TaskTape Live Target, click the empty Verification text field and type exactly: TaskTape live computer test 2026-07-17. Do not submit, navigate, close, or interact with anything else. Stop after the text is visible.',
-        approvalMode: 'allow_unattended',
-        capability: 'computer',
-        targetApp: 'Google Chrome for Testing'
-      })
-      await window.tasktape.workflow.saveSchedule({
-        workflowId: workflow.id,
-        frequency: 'daily',
-        time: '23:59',
-        weekday: null
-      })
-      return workflow.id
+    const runCheck = async (name: string) =>
+      page.evaluate(
+        async ({ checkName, outcome }) => {
+          const workflow = await window.tasktape.workflow.save({
+            name: checkName,
+            goal: 'Verify that a saved creator asset retains its selected category.',
+            instructions:
+              'In the browser page titled Replay Target, click the large green Save asset button once. Leave the title as Launch clip and category as Video. Do not change any field, navigate, close, or interact with anything else. Stop immediately when an item appears under Saved assets.',
+            expectedOutcome: outcome,
+            approvalMode: 'review_each_run',
+            capability: 'computer',
+            targetApp: 'Google Chrome for Testing'
+          })
+          return window.tasktape.workflow.runTask(workflow.id)
+        },
+        { checkName: name, outcome: expectedOutcome }
+      )
+
+    const brokenRun = await runCheck('Creator asset regression')
+    if (!brokenRun.verification) {
+      throw new Error(brokenRun.results.map((result) => result.message).join('\n'))
+    }
+    await mkdir(resolve('output/live'), { recursive: true })
+    await writeFile(
+      resolve('output/live/replay-broken-final.png'),
+      Buffer.from(brokenRun.verification!.screenshotDataUrl.split(',')[1], 'base64')
+    )
+    expect(brokenRun).toMatchObject({
+      status: 'failed',
+      verification: { status: 'failed', expectedOutcome }
+    })
+    await expect(brokenPage.locator('#saved-result')).toContainText('Uncategorized')
+
+    await fixedPage.bringToFront()
+    await fixedPage.waitForTimeout(500)
+    const fixedRun = await runCheck('Creator asset fixed build')
+    if (!fixedRun.verification) {
+      throw new Error(fixedRun.results.map((result) => result.message).join('\n'))
+    }
+    await writeFile(
+      resolve('output/live/replay-fixed-final.png'),
+      Buffer.from(fixedRun.verification!.screenshotDataUrl.split(',')[1], 'base64')
+    )
+    await expect(fixedPage.locator('#saved-result')).toContainText('Video')
+    expect(fixedRun).toMatchObject({
+      status: 'completed',
+      verification: { status: 'passed', expectedOutcome }
     })
 
-    await page.getByRole('button', { name: 'Scheduled' }).click()
-    await expect(page.getByText('Browser live verification', { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Run now' }).click()
-    await expect(page.getByRole('heading', { name: 'Run history' })).toBeVisible({
-      timeout: 110_000
-    })
-    await expect(page.getByText('Browser live verification', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Run history' }).click()
+    await expect(page.getByText('Creator asset regression', { exact: true })).toBeVisible()
+    await expect(page.getByText('Creator asset fixed build', { exact: true })).toBeVisible()
+    await expect(page.getByText('Regression found', { exact: true })).toBeVisible()
+    await expect(page.getByText('Passed', { exact: true })).toBeVisible()
 
     const history = await page.evaluate(() => window.tasktape.workflow.history())
-    expect(history).toHaveLength(1)
-    expect(history[0]).toMatchObject({
-      workflowName: 'Browser live verification',
-      run: { status: 'completed', trigger: 'manual' }
-    })
-    expect(history[0].run.results.length).toBeGreaterThan(0)
-
-    await expect(targetPage.getByLabel('Verification text')).toHaveValue(expectedText)
-
-    expect(workflowId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(history).toHaveLength(2)
+    expect(history.map((entry) => entry.run.verification?.status).sort()).toEqual([
+      'failed',
+      'passed'
+    ])
   } finally {
     await application.close()
     await browser.close()

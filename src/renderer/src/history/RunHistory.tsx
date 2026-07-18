@@ -48,7 +48,7 @@ export function RunHistory({ onCreateNew }: RunHistoryProps): React.JSX.Element 
         <div>
           <p className="eyebrow">Activity</p>
           <h1 id="history-title">Run history</h1>
-          <p>See what each workflow changed and when it ran.</p>
+          <p>Review replay evidence and earlier task results.</p>
         </div>
         <button
           className="icon-button"
@@ -78,7 +78,7 @@ export function RunHistory({ onCreateNew }: RunHistoryProps): React.JSX.Element 
         <div className="history-empty">
           <History size={22} />
           <h2>No runs yet</h2>
-          <p>Your completed workflows will appear here.</p>
+          <p>Your completed checks and tasks will appear here.</p>
           <button className="primary-action" type="button" onClick={onCreateNew}>
             Create workflow
           </button>
@@ -86,6 +86,7 @@ export function RunHistory({ onCreateNew }: RunHistoryProps): React.JSX.Element 
       ) : (
         <ol className="history-list" aria-label="Workflow runs">
           {entries.map((entry) => {
+            const verification = entry.run.verification
             const completed = entry.run.results.filter(
               (result) => result.status === 'completed'
             ).length
@@ -94,8 +95,9 @@ export function RunHistory({ onCreateNew }: RunHistoryProps): React.JSX.Element 
               <li key={entry.run.id}>
                 <details>
                   <summary>
-                    <span className={`history-status ${entry.run.status}`}>
-                      {entry.run.status === 'completed' ? (
+                    <span className={`history-status ${verification?.status ?? entry.run.status}`}>
+                      {(verification?.status ?? entry.run.status) === 'passed' ||
+                      (!verification && entry.run.status === 'completed') ? (
                         <Check size={15} />
                       ) : (
                         <AlertCircle size={15} />
@@ -111,10 +113,29 @@ export function RunHistory({ onCreateNew }: RunHistoryProps): React.JSX.Element 
                       </time>
                       <span>{entry.run.trigger === 'schedule' ? 'Scheduled' : 'Manual'}</span>
                       <span>
-                        {completed} updated{failed > 0 ? `, ${failed} failed` : ''}
+                        {verification
+                          ? verification.status === 'passed'
+                            ? 'Passed'
+                            : verification.status === 'failed'
+                              ? 'Regression found'
+                              : 'Needs review'
+                          : `${completed} updated${failed > 0 ? `, ${failed} failed` : ''}`}
                       </span>
                     </span>
                   </summary>
+                  {verification ? (
+                    <div className={`history-verification ${verification.status}`}>
+                      <img
+                        src={verification.screenshotDataUrl}
+                        alt="Final screen used for this check"
+                      />
+                      <div>
+                        <span>Expected result</span>
+                        <strong>{verification.expectedOutcome}</strong>
+                        <p>{verification.summary}</p>
+                      </div>
+                    </div>
+                  ) : null}
                   <ul className="history-files">
                     {entry.run.results.map((result) => (
                       <li key={result.actionId}>

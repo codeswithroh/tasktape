@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Replay Target</title>
+    <style>
+      :root {
+        color: #172019;
+        background: #f4f7f4;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 56px;
+      }
+      main {
+        width: min(760px, 100%);
+        margin: 0 auto;
+      }
+      header {
+        border-bottom: 1px solid #cbd5ce;
+        padding-bottom: 24px;
+        margin-bottom: 32px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 34px;
+      }
+      header p {
+        margin: 0;
+        color: #59665e;
+      }
+      form {
+        display: grid;
+        grid-template-columns: 1fr 220px;
+        gap: 16px;
+        align-items: end;
+      }
+      label {
+        display: grid;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 650;
+      }
+      input,
+      select,
+      button {
+        min-height: 44px;
+        border: 1px solid #aebbb2;
+        border-radius: 6px;
+        padding: 0 12px;
+        font: inherit;
+      }
+      button {
+        border-color: #0e6847;
+        background: #176b4b;
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 17px;
+        grid-column: 1 / -1;
+        min-height: 58px;
+        width: 100%;
+      }
+      section {
+        margin-top: 40px;
+      }
+      h2 {
+        font-size: 18px;
+      }
+      .empty {
+        color: #68746c;
+        border: 1px dashed #aebbb2;
+        padding: 24px;
+      }
+      .asset {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 1px solid #b8c5bc;
+        border-left: 4px solid #176b4b;
+        padding: 18px;
+        background: white;
+      }
+      .asset strong {
+        font-size: 17px;
+      }
+      .asset span {
+        background: #e5eee8;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Creator asset intake</h1>
+        <p>Add a new asset and keep its publishing category.</p>
+      </header>
+      <form id="asset-form">
+        <label>
+          Asset title
+          <input id="asset-title" value="Launch clip" />
+        </label>
+        <label>
+          Category
+          <select id="asset-category">
+            <option selected>Video</option>
+            <option>Image</option>
+          </select>
+        </label>
+        <button type="submit">Save asset</button>
+      </form>
+      <section aria-labelledby="saved-title">
+        <h2 id="saved-title">Saved assets</h2>
+        <div id="saved-result" class="empty">No assets saved yet.</div>
+      </section>
+    </main>
+    <script>
+      const requestedMode =
+        document.body.dataset.mode || new URLSearchParams(location.search).get('mode')
+      const mode = requestedMode === 'fixed' ? 'fixed' : 'broken'
+      document.querySelector('#asset-form').addEventListener('submit', (event) => {
+        event.preventDefault()
+        const title = document.querySelector('#asset-title').value
+        const selectedCategory = document.querySelector('#asset-category').value
+        const category = mode === 'fixed' ? selectedCategory : 'Uncategorized'
+        document.querySelector('#saved-result').className = 'asset'
+        document.querySelector('#saved-result').innerHTML =
+          `<strong>${title}</strong><span>${category}</span>`
+      })
+    </script>
+  </body>
+</html>

@@ -8,6 +8,7 @@ import { rm } from 'node:fs/promises'
 import type { SaveWorkflowInput } from '../shared/workflow-schema.js'
 import {
   createWorkflowPlan,
+  executeComputerTask,
   executeWorkflowPlan,
   listScheduledTasks,
   listWorkflowHistory,
@@ -295,6 +296,39 @@ describe('workflow persistence and execution', () => {
     await expect(createWorkflowPlan(setup.root, workflow.id)).rejects.toThrow(
       'Computer tasks run directly'
     )
+  })
+
+  it('persists visual verification evidence for a learned computer check', async () => {
+    const setup = await fixture()
+    const expectedOutcome = 'The saved asset visibly keeps the Video category.'
+    const workflow = await saveWorkflow(setup.root, {
+      name: 'Check saved asset category',
+      goal: 'Verify the saved asset keeps its category.',
+      instructions: 'Save the asset and inspect its category.',
+      approvalMode: 'review_each_run',
+      capability: 'computer',
+      targetApp: 'Browser',
+      expectedOutcome
+    })
+
+    const run = await executeComputerTask(setup.root, workflow.id, async () => ({
+      output: 'Replay complete.',
+      actionLog: ['Click Save asset'],
+      verification: {
+        status: 'failed',
+        expectedOutcome,
+        summary: 'The saved category is Uncategorized.',
+        evidence: ['Uncategorized is visible beside Launch clip.'],
+        screenshotDataUrl: 'data:image/png;base64,c2NyZWVu'
+      }
+    }))
+    const history = await listWorkflowHistory(setup.root)
+
+    expect(run).toMatchObject({
+      status: 'failed',
+      verification: { status: 'failed', expectedOutcome }
+    })
+    expect(history[0].run.verification).toEqual(run.verification)
   })
 
   it('migrates a saved version 1 workflow before planning and preserves existing files', async () => {

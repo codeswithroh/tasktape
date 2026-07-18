@@ -32,6 +32,7 @@ import {
   transcribeIntent
 } from './analysis.js'
 import { TEST_COMPUTER_WORKFLOW_ANALYSIS, TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
+import { AgentMcpServer } from './agent-mcp.js'
 import {
   clearApiKey,
   type CredentialCipher,
@@ -39,14 +40,18 @@ import {
   resolveApiKey,
   saveApiKey
 } from './api-credentials.js'
+import { BrowserEvidenceManager } from './browser-evidence.js'
 import { isAllowedMediaRequest } from './media-permissions.js'
 import { requestOpenAIComputerResponse, runComputerAgent } from './computer-agent.js'
 import { createMacOSInputHarness } from './macos-input.js'
+import { evaluateComputerOutcome, requestOpenAIOutcomeEvaluation } from './outcome-evaluator.js'
 import { removeRecording, saveRecording } from './recordings.js'
 import {
+  type ComputerTaskResult,
   createWorkflowPlan,
   executeComputerTask,
   executeWorkflowPlan,
+  listWorkflows,
   listScheduledTasks,
   listWorkflowHistory,
   readWorkflow,
@@ -77,6 +82,10 @@ function workflowsRoot(): string {
   return join(app.getPath('userData'), 'workflows')
 }
 
+function agentSessionsRoot(): string {
+  return join(app.getPath('userData'), 'agent-sessions')
+}
+
 const credentialCipher: CredentialCipher = {
   isAvailable: () => safeStorage.isEncryptionAvailable(),
   encrypt: (plainText) => safeStorage.encryptString(plainText),
@@ -86,16 +95,36 @@ const credentialCipher: CredentialCipher = {
 const selectedCaptureSources = new Map<number, string>()
 const TEST_CAPTURE_THUMBNAIL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
+const TEST_RESULT_SCREENSHOT =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZxnEAAAAASUVORK5CYII='
 const TEST_INTENT_TRANSCRIPT =
   'Organize new assets using the structure I demonstrated every Monday at 9 AM, and leave anything unmatched in place.'
 
 async function runComputerWorkflow(
   workflow: Extract<Awaited<ReturnType<typeof readWorkflow>>, { capability: 'computer' }>
-): Promise<{ output: string; actionLog: string[] }> {
+): Promise<ComputerTaskResult> {
   if (process.env.TASKTAPE_E2E === '1') {
+    const verificationStatus =
+      process.env.TASKTAPE_E2E_VERIFICATION === 'failed' ? 'failed' : 'passed'
     return {
       output: 'Computer task completed.',
-      actionLog: ['Completed the recorded computer task']
+      actionLog: ['Completed the recorded computer task'],
+      verification: workflow.expectedOutcome
+        ? {
+            status: verificationStatus,
+            expectedOutcome: workflow.expectedOutcome,
+            summary:
+              verificationStatus === 'passed'
+                ? 'The expected result is visible.'
+                : 'The saved item does not retain the expected category.',
+            evidence: [
+              verificationStatus === 'passed'
+                ? 'The saved item retains the Video category.'
+                : 'The saved item is labeled Uncategorized.'
+            ],
+            screenshotDataUrl: TEST_RESULT_SCREENSHOT
+          }
+        : null
     }
   }
   const credential = await resolveApiKey(
@@ -110,7 +139,7 @@ async function runComputerWorkflow(
   taskTapeWindow?.hide()
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 250))
   try {
-    return await runComputerAgent({
+    const result = await runComputerAgent({
       task: workflow.instructions,
       harness: createMacOSInputHarness({
         targetApp: workflow.targetApp ?? undefined
@@ -121,6 +150,26 @@ async function runComputerWorkflow(
           ? (event) => process.stderr.write(`TaskTape computer: ${event}\n`)
           : undefined
     })
+    const verification = workflow.expectedOutcome
+      ? await evaluateComputerOutcome(
+          {
+            expectedOutcome: workflow.expectedOutcome,
+            screenshotDataUrl: result.finalScreenshot
+          },
+          (input) => requestOpenAIOutcomeEvaluation(input, credential.apiKey ?? undefined)
+        )
+      : null
+    return {
+      output: result.output,
+      actionLog: result.actionLog,
+      verification: verification
+        ? {
+            ...verification,
+            expectedOutcome: workflow.expectedOutcome ?? '',
+            screenshotDataUrl: result.finalScreenshot
+          }
+        : null
+    }
   } finally {
     if (wasVisible) {
       taskTapeWindow?.show()
@@ -308,7 +357,38 @@ function registerSettingsIpc(): void {
   })
 }
 
+let agentMcpServer: AgentMcpServer | null = null
+
+function registerAgentIpc(): void {
+  ipcMain.handle('agent:get-status', (event) => {
+    assertTrustedSender(event)
+    if (!agentMcpServer) throw new Error('The local agent connection is still starting.')
+    return agentMcpServer.status
+  })
+}
+
+async function startAgentMcpServer(): Promise<void> {
+  const manager = new BrowserEvidenceManager({
+    sessionsRoot: agentSessionsRoot(),
+    saveComputerWorkflow: (input) => saveWorkflow(workflowsRoot(), input)
+  })
+  const configuredPort = Number(process.env.TASKTAPE_MCP_PORT)
+  const port = process.env.TASKTAPE_E2E === '1' ? 0 : configuredPort || undefined
+  agentMcpServer = new AgentMcpServer({
+    manager,
+    runCheck: (workflowId) => runSavedTask(workflowId),
+    listChecks: () => listWorkflows(workflowsRoot()),
+    listRuns: () => listWorkflowHistory(workflowsRoot()),
+    port
+  })
+  await agentMcpServer.start()
+}
+
 function registerWorkflowIpc(): void {
+  ipcMain.handle('workflow:list', (event) => {
+    assertTrustedSender(event)
+    return listWorkflows(workflowsRoot())
+  })
   ipcMain.handle('workflow:choose-directory', async (event) => {
     assertTrustedSender(event)
     if (process.env.TASKTAPE_E2E === '1' && process.env.TASKTAPE_E2E_NATIVE_DIRECTORY !== '1') {
@@ -447,11 +527,17 @@ if (!hasSingleInstanceLock) {
     registerRecorderIpc()
     registerAnalysisIpc()
     registerSettingsIpc()
+    registerAgentIpc()
     registerWorkflowIpc()
     registerDisplayCapture()
     registerMediaPermissions()
     startWorkflowScheduler()
     createWindow()
+    void startAgentMcpServer().catch((error: unknown) => {
+      process.stderr.write(
+        `TaskTape MCP error: ${error instanceof Error ? error.message : 'Unknown error'}\n`
+      )
+    })
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
@@ -459,6 +545,7 @@ if (!hasSingleInstanceLock) {
 
   app.on('before-quit', () => {
     if (schedulerTimer) clearInterval(schedulerTimer)
+    void agentMcpServer?.stop()
   })
 
   app.on('window-all-closed', () => {
