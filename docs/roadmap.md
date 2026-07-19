@@ -166,7 +166,7 @@ Current boundary:
 
 - Agent capture supports local browser applications and one active session. Release builds include their browser runtime. General desktop instrumentation, remote staging URLs, CI workers, and direct GitHub issue ingestion remain post-hackathon work.
 
-## Milestone 5: Product polish and submission - July 19-20
+## Milestone 5: Product polish and public beta - Complete July 19
 
 Deliverables:
 
@@ -179,6 +179,13 @@ Deliverables:
 Exit gate:
 
 - A clean-machine rehearsal follows the README, the demo succeeds twice consecutively, and every submission requirement is present.
+
+Verified result:
+
+- The self-contained 0.2.0 DMG includes Chromium and the TaskTape product icon.
+- A read-only mounted-DMG run completed the external MCP reproduction journey with fresh user data.
+- The production landing page and stable GitHub download passed desktop, mobile, redirect, full-download, SHA-256, and disk-image checks.
+- The release remains clearly labeled as an unsigned Apple Silicon beta until Apple Developer ID and notarization credentials are available.
 
 ## Buffer: July 21
 
