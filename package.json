@@ -27,6 +27,7 @@
   "build": {
     "appId": "com.tasktape.desktop",
     "productName": "TaskTape",
+    "afterPack": "scripts/after-pack.mjs",
     "directories": {
       "output": "release"
     },
