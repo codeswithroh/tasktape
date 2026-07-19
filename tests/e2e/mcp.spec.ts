@@ -19,8 +19,11 @@ test('shares one agent-recorded bug session with the TaskTape desktop app', asyn
   if (!address || typeof address === 'string') throw new Error('Fixture server did not start.')
   const targetUrl = `http://127.0.0.1:${address.port}`
 
+  const packagedExecutable = process.env.TASKTAPE_PACKAGED_APP
   const application = await electron.launch({
-    args: [resolve('.')],
+    ...(packagedExecutable
+      ? { executablePath: resolve(packagedExecutable) }
+      : { args: [resolve('.')] }),
     env: { ...process.env, TASKTAPE_E2E: '1', TASKTAPE_USER_DATA: userData }
   })
   const page = await application.firstWindow()

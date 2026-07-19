@@ -6,7 +6,16 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['out', 'release', 'coverage', 'playwright-report', 'test-results'] },
+  {
+    ignores: [
+      'out',
+      'release',
+      'build/playwright-browsers',
+      'coverage',
+      'playwright-report',
+      'test-results'
+    ]
+  },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -17,6 +26,10 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }]
     }
+  },
+  {
+    files: ['site/**/*.js'],
+    languageOptions: { globals: globals.browser }
   },
   prettier
 )

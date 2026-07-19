@@ -1,14 +1,18 @@
 import { createServer, type Server } from 'node:http'
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 import { chromium } from 'playwright-core'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { bugSessionSchema } from '../shared/agent-schema.js'
 import { savedWorkflowSchema } from '../shared/workflow-schema.js'
-import { BrowserEvidenceManager, compileReplayInstructions } from './browser-evidence.js'
+import {
+  BrowserEvidenceManager,
+  bundledChromiumExecutable,
+  compileReplayInstructions
+} from './browser-evidence.js'
 import { readWorkflow, saveWorkflow } from './workflows.js'
 
 const cleanup: Array<() => Promise<void>> = []
@@ -38,6 +42,25 @@ async function fixtureServer(): Promise<{ server: Server; url: string }> {
 }
 
 describe('browser evidence manager', () => {
+  it('finds the Chromium runtime bundled with a packaged app', async () => {
+    const resourcesPath = await mkdtemp(join(tmpdir(), 'tasktape-resources-'))
+    cleanup.push(() => rm(resourcesPath, { recursive: true, force: true }))
+    const executable = join(
+      resourcesPath,
+      'playwright-browsers',
+      'chromium-1228',
+      'chrome-mac-arm64',
+      'Google Chrome for Testing.app',
+      'Contents',
+      'MacOS',
+      'Google Chrome for Testing'
+    )
+    await mkdir(dirname(executable), { recursive: true })
+    await writeFile(executable, '')
+
+    expect(bundledChromiumExecutable(resourcesPath, 'arm64')).toBe(executable)
+  })
+
   it('captures a broken browser flow and compiles it into a saved Replay check', async () => {
     const root = await mkdtemp(join(tmpdir(), 'tasktape-agent-session-'))
     cleanup.push(() => rm(root, { recursive: true, force: true }))

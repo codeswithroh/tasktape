@@ -56,7 +56,9 @@ export function AgentConnectionSettings(): React.JSX.Element {
         </span>
         <div>
           <h2 id="agent-connection-title">Agent connection</h2>
-          <p>Connect Claude Code or Codex to the local Replay tools.</p>
+          <p>
+            Connect Claude Code or Codex. TaskTape includes the browser and keeps sessions local.
+          </p>
         </div>
         <span className={`agent-server-status ${status?.running ? 'running' : ''}`}>
           <span />

@@ -6,6 +6,7 @@ node_modules/
 dist/
 out/
 release/
+build/playwright-browsers/
 coverage/
 playwright-report/
 test-results/
