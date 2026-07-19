@@ -24,7 +24,7 @@ The initial release is macOS-first and is being built for OpenAI Build Week. The
 
 ## Download
 
-Download the Apple Silicon beta from the [TaskTape Replay site](https://codeswithroh.github.io/tasktape/) or from [GitHub Releases](https://github.com/codeswithroh/tasktape/releases/latest). The DMG contains TaskTape's tested browser runtime, so Google Chrome is not required.
+Download the Apple Silicon beta from the [TaskTape Replay site](https://tasktape-replay.vercel.app/) or from [GitHub Releases](https://github.com/codeswithroh/tasktape/releases/latest). The DMG contains TaskTape's tested browser runtime, so Google Chrome is not required.
 
 The beta is not signed or notarized yet. After copying TaskTape to Applications, macOS may require you to control-click the app, choose Open, and confirm once. A signed release requires an Apple Developer ID certificate and notarization credentials.
 
