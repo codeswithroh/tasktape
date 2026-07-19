@@ -22,6 +22,12 @@ Users can add or replace their own OpenAI API key from Settings. App-managed key
 
 The initial release is macOS-first and is being built for OpenAI Build Week. The hackathon demo proves one complete browser regression loop deeply. It does not claim broad, deterministic automation across every desktop application.
 
+## Download
+
+Download the Apple Silicon beta from the [TaskTape Replay site](https://codeswithroh.github.io/tasktape/) or from [GitHub Releases](https://github.com/codeswithroh/tasktape/releases/latest). The DMG contains TaskTape's tested browser runtime, so Google Chrome is not required.
+
+The beta is not signed or notarized yet. After copying TaskTape to Applications, macOS may require you to control-click the app, choose Open, and confirm once. A signed release requires an Apple Developer ID certificate and notarization credentials.
+
 The reliable local-file capability learns extension groups and child-folder destinations from the demonstration, then organizes top-level files inside one approved folder. The user does not configure separate video or image fields. Tasks that need an application or website use OpenAI computer use through a native macOS input adapter. Model safety checks stop the run for review, and the agent is bounded to 25 turns. Scheduled runs require TaskTape to be open and the Mac to be awake. Background launch, history search, rollback, and safety-check resumption are not yet implemented.
 
 ## Product loop
@@ -50,12 +56,13 @@ Ask the connected agent to reproduce a bug on a local development URL and turn i
 - [Architecture](docs/architecture.md)
 - [Agent-operated replay milestone](docs/agent-mcp-milestone.md)
 - [Voice and scheduling research](docs/voice-and-scheduling-research.md)
+- [Market validation](docs/market-validation.md)
 - [Milestone roadmap](docs/roadmap.md)
 - [Verification log](docs/verification.md)
 
 ## Development
 
-Prerequisites: Node.js 22+, pnpm 11.7.0, Xcode Command Line Tools, Google Chrome, and macOS for desktop capture, browser instrumentation, and computer-control verification.
+Prerequisites: Node.js 22+, pnpm 11.7.0, Xcode Command Line Tools, and macOS for desktop capture and computer-control verification. The packaging command downloads the pinned Playwright Chromium runtime into the release bundle.
 
 ```bash
 cd /Users/rohitpurkait/Documents/codex_build_week

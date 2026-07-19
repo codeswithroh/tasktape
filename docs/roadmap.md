@@ -164,7 +164,7 @@ Verified result:
 
 Current boundary:
 
-- Agent capture supports local browser applications, one active session, and an installed Chrome runtime. General desktop instrumentation, remote staging URLs, CI workers, and direct GitHub issue ingestion remain post-hackathon work.
+- Agent capture supports local browser applications and one active session. Release builds include their browser runtime. General desktop instrumentation, remote staging URLs, CI workers, and direct GitHub issue ingestion remain post-hackathon work.
 
 ## Milestone 5: Product polish and submission - July 19-20
 

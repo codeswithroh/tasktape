@@ -1,6 +1,6 @@
 {
   "name": "tasktape",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Turn a narrated bug recording into a living regression check.",
   "type": "module",
   "main": "./out/main/index.js",
@@ -21,11 +21,13 @@
     "test:watch": "vitest",
     "test:e2e": "pnpm build && playwright test",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "package:mac": "pnpm build && electron-builder --mac"
+    "browser:install": "PLAYWRIGHT_BROWSERS_PATH=build/playwright-browsers playwright install --no-shell chromium",
+    "package:mac": "pnpm browser:install && pnpm build && electron-builder --mac"
   },
   "build": {
     "appId": "com.tasktape.desktop",
     "productName": "TaskTape",
+    "afterPack": "scripts/after-pack.mjs",
     "directories": {
       "output": "release"
     },
@@ -33,8 +35,18 @@
       "out/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "build/playwright-browsers",
+        "to": "playwright-browsers",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "mac": {
       "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "TaskTape uses the microphone only when you record a voice note describing a workflow."
       },

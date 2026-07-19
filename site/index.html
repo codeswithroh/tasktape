@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="TaskTape Replay helps Claude Code and Codex reproduce local browser bugs, preserve evidence, and turn fixes into reusable checks."
+    />
+    <meta name="theme-color" content="#f5f8f6" />
+    <meta property="og:title" content="TaskTape Replay" />
+    <meta
+      property="og:description"
+      content="Let your coding agent reproduce a browser bug, prove the fix, and leave behind a reusable check."
+    />
+    <meta property="og:image" content="assets/tasktape-replay-check.png" />
+    <title>TaskTape Replay | Reproduce bugs. Prove fixes.</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="TaskTape Replay home">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span>
+          <span></span>
+        </span>
+        <span>TaskTape</span>
+        <span class="brand-product">Replay</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="#setup">Setup</a>
+        <a href="https://github.com/codeswithroh/tasktape">GitHub</a>
+      </nav>
+      <a
+        class="button button-small button-download"
+        href="https://github.com/codeswithroh/tasktape/releases/latest/download/TaskTape-latest-arm64.dmg"
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14" />
+        </svg>
+        Download
+      </a>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">
+            <span class="status-dot"></span> Local browser verification for coding agents
+          </p>
+          <h1 id="hero-title">TaskTape Replay</h1>
+          <p class="hero-statement">Reproduce the bug. Prove the fix. Keep the check.</p>
+          <p class="hero-detail">
+            Give Claude Code or Codex a visible browser it can control through MCP. TaskTape
+            preserves the evidence and turns the session into a check your team can replay.
+          </p>
+          <div class="hero-actions">
+            <a
+              class="button button-primary button-download"
+              href="https://github.com/codeswithroh/tasktape/releases/latest/download/TaskTape-latest-arm64.dmg"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14" />
+              </svg>
+              Download for macOS
+            </a>
+            <a class="button button-secondary" href="https://github.com/codeswithroh/tasktape">
+              View on GitHub
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+            </a>
+          </div>
+          <p class="download-note">Apple Silicon beta. Local-only sessions. No account required.</p>
+        </div>
+
+        <figure class="product-frame hero-product">
+          <div class="window-bar" aria-hidden="true">
+            <span></span><span></span><span></span>
+            <p>TaskTape Replay</p>
+          </div>
+          <img
+            src="assets/tasktape-replay-check.png"
+            alt="TaskTape Replay desktop app showing an agent-created browser regression check"
+            width="1180"
+            height="760"
+          />
+          <figcaption>
+            <span><strong>Agent created</strong> A reproducible check, ready for review</span>
+            <span class="local-badge"><span class="status-dot"></span> Runs on your Mac</span>
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="evidence-strip" aria-label="Evidence captured by TaskTape">
+        <p>One session preserves</p>
+        <ul>
+          <li>Actions</li>
+          <li>Screenshots</li>
+          <li>Console</li>
+          <li>Network</li>
+          <li>Playwright trace</li>
+        </ul>
+      </section>
+
+      <section class="section workflow" id="how-it-works" aria-labelledby="workflow-title">
+        <div class="section-heading">
+          <p class="eyebrow">From report to regression check</p>
+          <h2 id="workflow-title">Your agent does the reproduction. You approve the truth.</h2>
+          <p>
+            TaskTape gives coding agents the browser tools they need while keeping the expected
+            result under human control.
+          </p>
+        </div>
+        <ol class="steps">
+          <li>
+            <span class="step-number">01</span>
+            <h3>Connect</h3>
+            <p>Add TaskTape as a local MCP server in Claude Code or Codex.</p>
+          </li>
+          <li>
+            <span class="step-number">02</span>
+            <h3>Reproduce</h3>
+            <p>Your agent opens the local app and follows the bug from start to failure.</p>
+          </li>
+          <li>
+            <span class="step-number">03</span>
+            <h3>Review</h3>
+            <p>Confirm what should happen before saving the regression check.</p>
+          </li>
+          <li>
+            <span class="step-number">04</span>
+            <h3>Replay</h3>
+            <p>Run the same check after a change and inspect pass or fail evidence.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="section proof" aria-labelledby="proof-title">
+        <div class="proof-copy">
+          <p class="eyebrow">Proof you can inspect</p>
+          <h2 id="proof-title">A failed check shows where reality diverged.</h2>
+          <p>
+            Each replay keeps the expected result beside the observed browser state. Open the
+            activity log for actions, screenshots, console output, requests, and the full trace.
+          </p>
+          <ul class="check-list">
+            <li><span aria-hidden="true">✓</span> Evidence stays on your machine</li>
+            <li><span aria-hidden="true">✓</span> Expected outcomes require review</li>
+            <li><span aria-hidden="true">✓</span> Every replay keeps a run record</li>
+          </ul>
+        </div>
+        <figure class="product-frame proof-product">
+          <div class="window-bar" aria-hidden="true">
+            <span></span><span></span><span></span>
+            <p>Regression evidence</p>
+          </div>
+          <img
+            src="assets/tasktape-regression-found.png"
+            alt="TaskTape showing a failed replay with the expected result and observed regression"
+            width="1180"
+            height="760"
+            loading="lazy"
+          />
+        </figure>
+      </section>
+
+      <section class="section setup" id="setup" aria-labelledby="setup-title">
+        <div class="section-heading compact">
+          <p class="eyebrow">Two-command setup</p>
+          <h2 id="setup-title">Connect the agent you already use.</h2>
+          <p>Open TaskTape, then add its local MCP endpoint to your coding agent.</p>
+        </div>
+        <div class="command-grid">
+          <article class="command-block">
+            <header>
+              <h3>Claude Code</h3>
+              <button
+                class="copy-button"
+                type="button"
+                data-copy="claude mcp add --transport http tasktape http://127.0.0.1:19790/mcp"
+                aria-label="Copy Claude Code setup command"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M8 8h11v11H8zM5 16H4V5h11v1" />
+                </svg>
+                <span>Copy</span>
+              </button>
+            </header>
+            <code>claude mcp add --transport http tasktape<br />http://127.0.0.1:19790/mcp</code>
+          </article>
+          <article class="command-block">
+            <header>
+              <h3>Codex</h3>
+              <button
+                class="copy-button"
+                type="button"
+                data-copy="codex mcp add tasktape --url http://127.0.0.1:19790/mcp"
+                aria-label="Copy Codex setup command"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M8 8h11v11H8zM5 16H4V5h11v1" />
+                </svg>
+                <span>Copy</span>
+              </button>
+            </header>
+            <code>codex mcp add tasktape --url<br />http://127.0.0.1:19790/mcp</code>
+          </article>
+        </div>
+      </section>
+
+      <section class="section beta-note" aria-labelledby="beta-title">
+        <div>
+          <p class="eyebrow">Honest beta</p>
+          <h2 id="beta-title">Built for local development today.</h2>
+        </div>
+        <div class="beta-details">
+          <p><strong>macOS first.</strong> This download supports Apple Silicon Macs.</p>
+          <p>
+            <strong>Local targets only.</strong> Replay sessions accept localhost URLs so your
+            development work stays bounded.
+          </p>
+          <p>
+            <strong>Unsigned build.</strong> macOS may ask you to approve TaskTape in System
+            Settings under Privacy &amp; Security.
+          </p>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="cta-title">
+        <p class="eyebrow">Make the fix measurable</p>
+        <h2 id="cta-title">Leave every reproduced bug with a check.</h2>
+        <p>Free, local, and ready for Claude Code or Codex.</p>
+        <div class="hero-actions centered">
+          <a
+            class="button button-primary button-download"
+            href="https://github.com/codeswithroh/tasktape/releases/latest/download/TaskTape-latest-arm64.dmg"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14" />
+            </svg>
+            Download for Apple Silicon
+          </a>
+          <a class="text-link" href="https://github.com/codeswithroh/tasktape"
+            >Read the source <span aria-hidden="true">→</span></a
+          >
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <a class="brand" href="#top" aria-label="Back to TaskTape Replay home">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span></span>
+        <span>TaskTape Replay</span>
+      </a>
+      <p>Local proof for agent-written fixes.</p>
+      <a href="https://github.com/codeswithroh/tasktape">GitHub</a>
+    </footer>
+
+    <div class="toast" role="status" aria-live="polite" aria-atomic="true" hidden>
+      <strong>Download started</strong>
+      <span
+        >Open the DMG when it finishes. This beta may require approval in Privacy &amp;
+        Security.</span
+      >
+      <button type="button" aria-label="Dismiss download message">Close</button>
+    </div>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { mkdir, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -74,23 +74,55 @@ async function writeJson(path: string, value: unknown): Promise<void> {
   await rename(temporary, path)
 }
 
+export function bundledChromiumExecutable(
+  resourcesPath = process.resourcesPath,
+  architecture = process.arch
+): string | undefined {
+  const root = join(resourcesPath, 'playwright-browsers')
+  if (!existsSync(root)) return undefined
+
+  const platformDirectory = architecture === 'arm64' ? 'chrome-mac-arm64' : 'chrome-mac-x64'
+  const revisions = readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('chromium-'))
+    .map((entry) => entry.name)
+    .sort()
+    .reverse()
+
+  return revisions
+    .map((revision) =>
+      join(
+        root,
+        revision,
+        platformDirectory,
+        'Google Chrome for Testing.app',
+        'Contents',
+        'MacOS',
+        'Google Chrome for Testing'
+      )
+    )
+    .find((candidate) => existsSync(candidate))
+}
+
 function localChromeExecutable(): string | undefined {
   const configured = process.env.TASKTAPE_CHROMIUM_EXECUTABLE
   if (configured && existsSync(configured)) return configured
 
   const candidates = [
+    bundledChromiumExecutable(),
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     '/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
     chromium.executablePath()
   ]
-  return candidates.find((candidate) => existsSync(candidate))
+  return candidates.find((candidate): candidate is string =>
+    Boolean(candidate && existsSync(candidate))
+  )
 }
 
 export async function launchTaskTapeBrowser(): Promise<Browser> {
   const executablePath = localChromeExecutable()
   if (!executablePath) {
     throw new Error(
-      'TaskTape needs Google Chrome to open an agent debugging session. Install Chrome and try again.'
+      'TaskTape could not start its browser. Reinstall TaskTape, or choose a Chrome executable with TASKTAPE_CHROMIUM_EXECUTABLE.'
     )
   }
   return chromium.launch({
