@@ -1,6 +1,6 @@
 {
   "name": "tasktape",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Turn a narrated bug recording into a living regression check.",
   "type": "module",
   "main": "./out/main/index.js",
@@ -20,6 +20,7 @@
     "test:live:computer": "pnpm build && TASKTAPE_LIVE_COMPUTER=1 playwright test --config playwright.live.config.ts",
     "test:watch": "vitest",
     "test:e2e": "pnpm build && playwright test",
+    "test:site": "PLAYWRIGHT_BROWSERS_PATH=build/playwright-browsers playwright test --config playwright.site.config.ts",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "browser:install": "PLAYWRIGHT_BROWSERS_PATH=build/playwright-browsers playwright install --no-shell chromium",
     "package:mac": "pnpm browser:install && pnpm build && electron-builder --mac"
