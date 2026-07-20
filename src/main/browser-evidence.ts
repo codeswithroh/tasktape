@@ -25,6 +25,7 @@ import {
   waitForInputSchema,
   type BrowserSelector,
   type BugSession,
+  type AgentReplayCommand,
   type StartBugSessionInput
 } from '../shared/agent-schema.js'
 import type { SavedWorkflow } from '../shared/workflow-schema.js'
@@ -249,7 +250,9 @@ export class BrowserEvidenceManager {
     const session = this.requireActive()
     const summary = `Click the ${selectorSummary(input.selector)}.`
     await resolveLocator(session.page, input.selector).click({ timeout: 10_000 })
-    await this.recordAction('click', summary)
+    await this.recordAction('click', summary, {
+      command: { type: 'click', selector: input.selector }
+    })
     return this.observe()
   }
 
@@ -266,7 +269,10 @@ export class BrowserEvidenceManager {
       input.value.length > 120 ? `${input.value.slice(0, 117)}...` : input.value
     await this.recordAction(
       'fill',
-      `Fill the ${selectorSummary(input.selector)} with "${displayedValue}".`
+      `Fill the ${selectorSummary(input.selector)} with "${displayedValue}".`,
+      {
+        command: { type: 'fill', selector: input.selector, value: input.value }
+      }
     )
     return this.observe()
   }
@@ -279,7 +285,8 @@ export class BrowserEvidenceManager {
     })
     await this.recordAction(
       'select_option',
-      `Choose "${input.value}" in the ${selectorSummary(input.selector)}.`
+      `Choose "${input.value}" in the ${selectorSummary(input.selector)}.`,
+      { command: { type: 'select_option', selector: input.selector, value: input.value } }
     )
     return this.observe()
   }
@@ -288,7 +295,9 @@ export class BrowserEvidenceManager {
     const input = pressKeyInputSchema.parse(rawInput)
     const session = this.requireActive()
     await session.page.keyboard.press(input.key)
-    await this.recordAction('press_key', `Press ${input.key}.`)
+    await this.recordAction('press_key', `Press ${input.key}.`, {
+      command: { type: 'press_key', key: input.key }
+    })
     return this.observe()
   }
 
@@ -300,17 +309,21 @@ export class BrowserEvidenceManager {
         state: 'visible',
         timeout: 10_000
       })
-      await this.recordAction('wait_for', `Wait until "${input.text}" is visible.`)
+      await this.recordAction('wait_for', `Wait until "${input.text}" is visible.`, {
+        command: { type: 'wait_for', text: input.text }
+      })
     } else {
       await session.page.waitForTimeout(input.milliseconds ?? 100)
-      await this.recordAction('wait_for', `Wait ${input.milliseconds} milliseconds.`)
+      await this.recordAction('wait_for', `Wait ${input.milliseconds} milliseconds.`, {
+        command: { type: 'wait_for', milliseconds: input.milliseconds }
+      })
     }
     return this.observe()
   }
 
   async addNote(rawInput: unknown): Promise<BugSession> {
     const input = addSessionNoteInputSchema.parse(rawInput)
-    await this.recordAction('note', `Agent note: ${input.note}`, false)
+    await this.recordAction('note', `Agent note: ${input.note}`, { screenshot: false })
     return this.requireActive().data
   }
 
@@ -395,16 +408,17 @@ export class BrowserEvidenceManager {
   private async recordAction(
     type: BugSession['actions'][number]['type'],
     summary: string,
-    screenshot = true
+    options: { screenshot?: boolean; command?: AgentReplayCommand } = {}
   ): Promise<void> {
     const session = this.requireActive()
     if (session.data.actions.length >= MAX_ACTIONS) {
       throw new Error('This session reached the 100-action limit. Finish it before continuing.')
     }
     const index = session.data.actions.length + 1
-    const screenshotFile = screenshot
-      ? `screenshots/${String(index).padStart(3, '0')}-${type.replace('_', '-')}.png`
-      : null
+    const screenshotFile =
+      (options.screenshot ?? true)
+        ? `screenshots/${String(index).padStart(3, '0')}-${type.replace('_', '-')}.png`
+        : null
     if (screenshotFile) {
       await session.page.screenshot({
         path: join(session.directory, screenshotFile),
@@ -417,7 +431,8 @@ export class BrowserEvidenceManager {
         type,
         summary,
         createdAt: new Date().toISOString(),
-        screenshotFile
+        screenshotFile,
+        command: options.command ?? null
       })
     )
     await this.persist()

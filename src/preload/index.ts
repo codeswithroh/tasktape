@@ -32,7 +32,11 @@ const bridge: TaskTapeBridge = {
     clearApiKey: () => ipcRenderer.invoke('settings:clear-api-key')
   },
   agent: {
-    getStatus: () => ipcRenderer.invoke('agent:get-status')
+    getStatus: () => ipcRenderer.invoke('agent:get-status'),
+    getEvidence: (workflowId) => ipcRenderer.invoke('agent:get-evidence', workflowId),
+    copyReport: (workflowId) => ipcRenderer.invoke('agent:copy-report', workflowId),
+    exportPlaywright: (workflowId) => ipcRenderer.invoke('agent:export-playwright', workflowId),
+    revealEvidence: (workflowId) => ipcRenderer.invoke('agent:reveal-evidence', workflowId)
   },
   workflow: {
     list: () => ipcRenderer.invoke('workflow:list'),

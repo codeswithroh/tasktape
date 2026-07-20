@@ -69,6 +69,10 @@ export interface TaskTapeBridge {
   }
   agent: {
     getStatus: () => Promise<AgentServerStatus>
+    getEvidence: (workflowId: string) => Promise<AgentEvidenceSummary | null>
+    copyReport: (workflowId: string) => Promise<void>
+    exportPlaywright: (workflowId: string) => Promise<ExportedArtifact | null>
+    revealEvidence: (workflowId: string) => Promise<void>
   }
   workflow: {
     list: () => Promise<SavedWorkflow[]>
@@ -89,7 +93,7 @@ import type {
   TranscribeIntentResult
 } from './analysis-contracts.js'
 import type { WorkflowAnalysis } from './analysis-schema.js'
-import type { AgentServerStatus } from './agent-schema.js'
+import type { AgentEvidenceSummary, AgentServerStatus, ExportedArtifact } from './agent-schema.js'
 import type {
   SaveScheduleInput,
   SavedWorkflow,

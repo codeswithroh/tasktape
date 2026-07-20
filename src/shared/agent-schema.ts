@@ -108,12 +108,33 @@ export const finishBugSessionInputSchema = z.object({
   replayInstructions: z.string().trim().max(2_000).optional()
 })
 
+export const agentReplayCommandSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('click'), selector: browserSelectorSchema }),
+  z.object({
+    type: z.literal('fill'),
+    selector: browserSelectorSchema,
+    value: z.string().max(4_000)
+  }),
+  z.object({
+    type: z.literal('select_option'),
+    selector: browserSelectorSchema,
+    value: z.string().trim().min(1).max(240)
+  }),
+  z.object({ type: z.literal('press_key'), key: pressKeyInputSchema.shape.key }),
+  z.object({
+    type: z.literal('wait_for'),
+    text: z.string().trim().min(1).max(240).optional(),
+    milliseconds: z.number().int().min(100).max(5_000).optional()
+  })
+])
+
 export const agentActionSchema = z.object({
   id: z.string().uuid(),
   type: z.enum(['click', 'fill', 'select_option', 'press_key', 'wait_for', 'note']),
   summary: z.string().min(1).max(1_000),
   createdAt: z.string().datetime(),
-  screenshotFile: z.string().min(1).max(160).nullable()
+  screenshotFile: z.string().min(1).max(160).nullable(),
+  command: agentReplayCommandSchema.nullable().default(null)
 })
 
 const browserLogSchema = z.object({
@@ -155,7 +176,27 @@ export const agentServerStatusSchema = z.object({
     .nullable()
 })
 
+export const agentEvidenceSummarySchema = z.object({
+  workflowId: z.string().uuid(),
+  sessionId: bugSessionIdSchema,
+  url: browserUrlSchema,
+  actionCount: z.number().int().nonnegative(),
+  screenshotCount: z.number().int().nonnegative(),
+  consoleCount: z.number().int().nonnegative(),
+  networkCount: z.number().int().nonnegative(),
+  hasTrace: z.boolean(),
+  canExportPlaywright: z.boolean()
+})
+
+export const exportedArtifactSchema = z.object({
+  path: z.string().min(1),
+  fileName: z.string().min(1)
+})
+
 export type AgentServerStatus = z.infer<typeof agentServerStatusSchema>
+export type AgentEvidenceSummary = z.infer<typeof agentEvidenceSummarySchema>
+export type AgentReplayCommand = z.infer<typeof agentReplayCommandSchema>
 export type BrowserSelector = z.infer<typeof browserSelectorSchema>
 export type BugSession = z.infer<typeof bugSessionSchema>
+export type ExportedArtifact = z.infer<typeof exportedArtifactSchema>
 export type StartBugSessionInput = z.infer<typeof startBugSessionInputSchema>
