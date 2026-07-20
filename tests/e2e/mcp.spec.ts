@@ -82,6 +82,27 @@ test('shares one agent-recorded bug session with the TaskTape desktop app', asyn
       timeout: 5_000
     })
     await expect(page.getByText(/Expected: Launch clip appears/)).toBeVisible()
+    await page
+      .getByRole('button', { name: 'Review evidence for Agent captured category bug' })
+      .click()
+    await expect(page.locator('.evidence-summary')).toContainText('1 actions')
+    await expect(page.locator('.evidence-summary')).toContainText('Ready trace')
+    await page.getByRole('button', { name: 'Copy bug report' }).click()
+    await expect(page.getByText('Bug report copied', { exact: true })).toBeVisible()
+    const copiedReport = await application.evaluate(({ clipboard }) => clipboard.readText())
+    expect(copiedReport).toContain('## Reproduction steps')
+    expect(copiedReport).toContain('Launch clip appears in Saved assets')
+
+    await page.getByRole('button', { name: 'Export Playwright' }).click()
+    await expect(page.getByText('agent-captured-category-bug.spec.ts saved')).toBeVisible()
+    const exportedTest = await readFile(
+      join(userData, 'exports', 'agent-captured-category-bug.spec.ts'),
+      'utf8'
+    )
+    expect(exportedTest).toContain(
+      'page.getByRole("button", { name: "Save asset", exact: true }).click()'
+    )
+    expect(exportedTest).toContain('toHaveScreenshot("agent-captured-category-bug.png"')
     await page.addStyleTag({
       content: '*, *::before, *::after { animation: none !important; transition: none !important; }'
     })

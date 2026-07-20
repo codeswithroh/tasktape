@@ -31,6 +31,10 @@ The first MCP capability intentionally targets local web applications. `start_bu
 
 Every operation stores an ordered action plus a screenshot. The session also records console messages, page errors, failed requests, HTTP error responses, initial and final screenshots, and a Playwright trace containing DOM snapshots and action timing. Finishing compiles the recorded actions into a review-required computer workflow and closes the temporary browser. Running or scheduling remains a separate explicit action.
 
+Agent actions also persist their schema-validated replay command. TaskTape can compile those commands into a small Playwright TypeScript test using the exact observed selectors and inputs, without calling a model during later test runs. The export carries the expected outcome as review context and uses a visual assertion that requires the developer to approve a baseline. Older sessions remain readable but cannot be exported from their natural-language summaries.
+
+The same session can produce a Markdown bug report with reproduction steps and diagnostic context. Reports are copied through the main process, exports use a native save dialog and `0600` file mode, and revealing evidence opens the existing local session directory. The renderer receives only evidence counts and availability flags.
+
 ## Capture source selection
 
 TaskTape lists full displays and open application windows through Electron `desktopCapturer`, then renders a grouped thumbnail gallery in the sandboxed UI. A source ID selected by the user is validated against a freshly enumerated main-process source list. The display-media handler consumes that one pending selection and rejects requests without one; the renderer cannot nominate an arbitrary capture target.

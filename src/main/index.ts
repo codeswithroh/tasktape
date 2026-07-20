@@ -1,3 +1,4 @@
+import { mkdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -5,6 +6,7 @@ import { config } from 'dotenv'
 import {
   app,
   BrowserWindow,
+  clipboard,
   desktopCapturer,
   dialog,
   type IpcMainInvokeEvent,
@@ -25,6 +27,7 @@ import type {
   SaveWorkflowInput,
   SetScheduleEnabledInput
 } from '../shared/workflow-schema.js'
+import { workflowIdSchema } from '../shared/workflow-schema.js'
 import {
   analyzeRecording,
   requestOpenAIAnalysis,
@@ -33,6 +36,13 @@ import {
 } from './analysis.js'
 import { TEST_COMPUTER_WORKFLOW_ANALYSIS, TEST_WORKFLOW_ANALYSIS } from './analysis-fixture.js'
 import { AgentMcpServer } from './agent-mcp.js'
+import {
+  compileIssueReport,
+  compilePlaywrightSpec,
+  findSessionForWorkflow,
+  playwrightFileName,
+  readAgentEvidence
+} from './agent-artifacts.js'
 import {
   clearApiKey,
   type CredentialCipher,
@@ -364,6 +374,56 @@ function registerAgentIpc(): void {
     assertTrustedSender(event)
     if (!agentMcpServer) throw new Error('The local agent connection is still starting.')
     return agentMcpServer.status
+  })
+  ipcMain.handle('agent:get-evidence', async (event, workflowId: string) => {
+    assertTrustedSender(event)
+    return readAgentEvidence(agentSessionsRoot(), workflowIdSchema.parse(workflowId))
+  })
+  ipcMain.handle('agent:copy-report', async (event, workflowId: string) => {
+    assertTrustedSender(event)
+    const match = await findSessionForWorkflow(
+      agentSessionsRoot(),
+      workflowIdSchema.parse(workflowId)
+    )
+    if (!match) throw new Error('No agent evidence is attached to this check.')
+    clipboard.writeText(compileIssueReport(match.session))
+  })
+  ipcMain.handle('agent:export-playwright', async (event, workflowId: string) => {
+    assertTrustedSender(event)
+    const id = workflowIdSchema.parse(workflowId)
+    const match = await findSessionForWorkflow(agentSessionsRoot(), id)
+    if (!match) throw new Error('No agent evidence is attached to this check.')
+    const fileName = playwrightFileName(match.session)
+    let path: string | null
+
+    if (process.env.TASKTAPE_E2E === '1') {
+      const directory = join(app.getPath('userData'), 'exports')
+      await mkdir(directory, { recursive: true })
+      path = join(directory, fileName)
+    } else {
+      const owner = BrowserWindow.fromWebContents(event.sender)
+      const result = await dialog.showSaveDialog(owner ?? BrowserWindow.getAllWindows()[0], {
+        title: 'Export Playwright check',
+        defaultPath: fileName,
+        filters: [{ name: 'Playwright TypeScript', extensions: ['ts'] }]
+      })
+      path = result.canceled ? null : (result.filePath ?? null)
+    }
+
+    if (!path) return null
+    await writeFile(path, compilePlaywrightSpec(match.session), { mode: 0o600 })
+    return { path, fileName }
+  })
+  ipcMain.handle('agent:reveal-evidence', async (event, workflowId: string) => {
+    assertTrustedSender(event)
+    const match = await findSessionForWorkflow(
+      agentSessionsRoot(),
+      workflowIdSchema.parse(workflowId)
+    )
+    if (!match) throw new Error('No agent evidence is attached to this check.')
+    if (process.env.TASKTAPE_E2E !== '1') {
+      shell.showItemInFolder(join(match.directory, 'session.json'))
+    }
   })
 }
 

@@ -5,16 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="TaskTape Replay helps Claude Code and Codex reproduce local browser bugs, preserve evidence, and turn fixes into reusable checks."
+      content="TaskTape Replay helps Claude Code and Codex reproduce local browser bugs, preserve evidence, and export reviewable Playwright checks."
     />
     <meta name="theme-color" content="#f5f8f6" />
     <meta property="og:title" content="TaskTape Replay" />
     <meta
       property="og:description"
-      content="Let your coding agent reproduce a browser bug, prove the fix, and leave behind a reusable check."
+      content="Let your coding agent reproduce a browser bug, prove the fix, and leave behind a reviewable Playwright check."
     />
     <meta property="og:image" content="assets/tasktape-replay-check.png" />
     <title>TaskTape Replay | Reproduce bugs. Prove fixes.</title>
+    <link rel="icon" href="assets/favicon.png" type="image/png" />
     <link rel="stylesheet" href="styles.css" />
     <script src="script.js" defer></script>
   </head>
@@ -56,7 +57,8 @@
           <p class="hero-statement">Reproduce the bug. Prove the fix. Keep the check.</p>
           <p class="hero-detail">
             Give Claude Code or Codex a visible browser it can control through MCP. TaskTape
-            preserves the evidence and turns the session into a check your team can replay.
+            preserves the evidence, builds the bug report, and exports a Playwright check your team
+            owns.
           </p>
           <div class="hero-actions">
             <a
@@ -82,13 +84,13 @@
             <p>TaskTape Replay</p>
           </div>
           <img
-            src="assets/tasktape-replay-check.png"
-            alt="TaskTape Replay desktop app showing an agent-created browser regression check"
+            src="assets/tasktape-portable-check.png"
+            alt="TaskTape Replay showing an agent-created check with evidence, report, and Playwright export controls"
             width="1180"
             height="760"
           />
           <figcaption>
-            <span><strong>Agent created</strong> A reproducible check, ready for review</span>
+            <span><strong>Yours to keep</strong> Report, evidence, and Playwright code</span>
             <span class="local-badge"><span class="status-dot"></span> Runs on your Mac</span>
           </figcaption>
         </figure>
@@ -102,6 +104,7 @@
           <li>Console</li>
           <li>Network</li>
           <li>Playwright trace</li>
+          <li>Portable test</li>
         </ul>
       </section>
 
@@ -133,7 +136,7 @@
           <li>
             <span class="step-number">04</span>
             <h3>Replay</h3>
-            <p>Run the same check after a change and inspect pass or fail evidence.</p>
+            <p>Run it in TaskTape or export ordinary Playwright code for your repository.</p>
           </li>
         </ol>
       </section>
@@ -149,6 +152,7 @@
           <ul class="check-list">
             <li><span aria-hidden="true">✓</span> Evidence stays on your machine</li>
             <li><span aria-hidden="true">✓</span> Expected outcomes require review</li>
+            <li><span aria-hidden="true">✓</span> Exported tests run without an LLM</li>
             <li><span aria-hidden="true">✓</span> Every replay keeps a run record</li>
           </ul>
         </div>
@@ -231,7 +235,7 @@
 
       <section class="final-cta" aria-labelledby="cta-title">
         <p class="eyebrow">Make the fix measurable</p>
-        <h2 id="cta-title">Leave every reproduced bug with a check.</h2>
+        <h2 id="cta-title">Leave every reproduced bug with code.</h2>
         <p>Free, local, and ready for Claude Code or Codex.</p>
         <div class="hero-actions centered">
           <a

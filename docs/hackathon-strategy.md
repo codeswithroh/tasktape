@@ -347,7 +347,7 @@ The README must then show: what changed during Build Week, exact GPT-5.6 integra
 9. **Can it test any application?** No. The hackathon proves one complete browser workflow and a bounded macOS execution path.
 10. **What happens when the UI changes?** GPT-5.6 reasons over the current screen instead of replaying fixed coordinates, but major changes can still fail and are reported.
 11. **Does it capture passwords?** Agent sessions reject password-field fills, accept only local development URLs, and remain local. API keys use operating-system encryption. Human recordings still require the user to avoid exposing secrets.
-12. **Why not generate Playwright?** TaskTape already uses Playwright for rich capture, but GPT-5.6 replay adapts to the current visual interface and can later extend beyond DOM-only targets. Exportable Playwright tests are future work.
+12. **Does TaskTape generate Playwright?** Agent-recorded browser sessions can export their observed steps as ordinary Playwright TypeScript with a reviewed visual baseline. TaskTape also keeps GPT-5.6 replay for adaptive checks and targets beyond DOM-only browser flows.
 13. **Does scheduling run while the Mac sleeps?** No. The app must be open and the Mac awake.
 14. **What happens on a model safety check?** The run stops before the flagged action executes.
 15. **What did Codex build?** The repo documents the iterative native recorder, schemas, execution adapters, scheduler, tests, and design revisions in dated commits.
@@ -355,7 +355,7 @@ The README must then show: what changed during Build Week, exact GPT-5.6 integra
 17. **What is mocked?** Automated Electron tests mock model responses. The separate live tests use the real OpenAI API and are labeled.
 18. **How reliable is it?** All 61 unit and integration tests and 10 Electron journeys pass. The visual evaluator classified five consecutive broken and fixed pairs correctly, and the paired live replay produced the expected fail and pass results.
 19. **What is the business wedge?** Product and support teams that collect bug videos but lack time to convert every issue into regression coverage.
-20. **What comes next?** Exportable test artifacts, CI triggers, richer event traces, signed builds, and an open evaluation format for computer-use agents.
+20. **What comes next?** Repository-aware exports, CI triggers, reviewed repair suggestions, signed builds, and an open evaluation format for computer-use agents.
 
 ## Red-team conclusion
 

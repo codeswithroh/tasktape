@@ -2382,7 +2382,7 @@ h1 {
 }
 
 .saved-checks > header > button,
-.saved-check-row > button {
+.saved-check-actions > button {
   display: grid;
   width: 38px;
   height: 38px;
@@ -2398,14 +2398,17 @@ h1 {
   border-top: 1px solid var(--border);
 }
 
+.saved-check-item {
+  border-bottom: 1px solid var(--border);
+}
+
 .saved-check-row {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   gap: 14px;
   align-items: center;
   min-height: 92px;
   padding: 16px 0;
-  border-bottom: 1px solid var(--border);
 }
 
 .saved-check-icon {
@@ -2429,20 +2432,92 @@ h1 {
   font-size: 11px;
 }
 
-.saved-check-row div > span {
+.saved-check-copy > span {
   display: block;
   margin-top: 7px;
   color: var(--muted);
   font-size: 10px;
 }
 
-.saved-check-row > button {
+.saved-check-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.saved-check-actions > button {
   color: var(--primary);
 }
 
-.saved-check-row > button:disabled {
+.saved-check-actions > button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.saved-check-actions > button[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.check-evidence {
+  display: grid;
+  gap: 15px;
+  padding: 16px 0 19px 52px;
+  border-top: 1px solid var(--border);
+}
+
+.check-evidence > p {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.evidence-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.evidence-summary span {
+  white-space: nowrap;
+}
+
+.evidence-summary strong {
+  margin-right: 3px;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.evidence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.evidence-actions button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--surface);
+  font-size: 11px;
+}
+
+.evidence-actions button:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.evidence-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.check-evidence .evidence-feedback {
+  color: var(--primary);
 }
 
 .saved-check-error {

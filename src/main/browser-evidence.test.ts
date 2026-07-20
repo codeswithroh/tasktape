@@ -101,6 +101,11 @@ describe('browser evidence manager', () => {
       workflowId: workflow.id,
       finalScreenshotFile: 'screenshots/final.png'
     })
+    expect(persistedSession.actions[0].command).toMatchObject({
+      type: 'select_option',
+      selector: { label: 'Category' },
+      value: 'Video'
+    })
     expect(persistedSession.actions.map((action) => action.type)).toEqual([
       'select_option',
       'click',

@@ -12,6 +12,8 @@ The Build Week reference flow records a browser bug, captures the expected outco
 
 The agent-operated reference flow is limited to local HTTP and HTTPS development servers. TaskTape creates a headed isolated Chrome session and exposes 12 bounded MCP tools for observation, interaction, evidence capture, check creation, and explicit execution. Finishing a capture never runs or schedules the check.
 
+Agent-created checks keep their evidence attached. Users can inspect screenshot, console, network, and trace counts, copy a ticket-ready Markdown report, reveal the local files, or export the observed steps as an ordinary Playwright TypeScript test. Exported tests use no LLM at run time and remain reviewable before they enter source control or CI.
+
 Checks have editable instructions and can run now or on hourly, daily, weekday, or weekly timing. Manual and scheduled results appear in Run history, so a team can see when a previously fixed behavior regresses.
 
 A spoken schedule such as "every Monday at 9 AM" prefills the save controls. It never becomes active until the user confirms unattended execution and saves the task. The Scheduled view shows the next run, last result, pause or resume, and Run now controls.
@@ -56,6 +58,7 @@ Ask the connected agent to reproduce a bug on a local development URL and turn i
 - [Architecture](docs/architecture.md)
 - [Agent-operated replay milestone](docs/agent-mcp-milestone.md)
 - [Voice and scheduling research](docs/voice-and-scheduling-research.md)
+- [Reddit competitor research](docs/reddit-market-research.md)
 - [Market validation](docs/market-validation.md)
 - [Milestone roadmap](docs/roadmap.md)
 - [Verification log](docs/verification.md)
