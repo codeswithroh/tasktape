@@ -187,6 +187,24 @@ Verified result:
 - The production landing page and stable GitHub download passed desktop, mobile, redirect, full-download, SHA-256, and disk-image checks.
 - The release remains clearly labeled as an unsigned Apple Silicon beta until Apple Developer ID and notarization credentials are available.
 
+## Milestone 6: Portable evidence handoff - Complete July 20
+
+Deliverables:
+
+- Reddit competitor and practitioner research with explicit product boundaries.
+- Evidence inventory on every agent-created check.
+- Ticket-ready Markdown report copied without uploading local evidence.
+- Ordinary Playwright TypeScript export built from observed structured commands.
+- Updated desktop and mobile release site using a verified product screenshot.
+
+Exit gate:
+
+- Unit tests verify deterministic compilation and legacy-session refusal. The Electron MCP journey reads the report from the system clipboard and validates the exported test. That journey passes against the development build, unpacked production app, and read-only mounted DMG.
+
+Verified result:
+
+- The complete gate passed with 66 unit and integration tests, 10 Electron journeys, two release-site browser viewports, package integrity checks, and two packaged-app MCP runs. Exported tests use no model at run time and remain review-required. Automatic repair, direct issue-tracker OAuth, and managed cloud execution remain out of scope.
+
 ## Buffer: July 21
 
 Only submission fixes, reliability fixes, and final upload verification. No new product scope.
